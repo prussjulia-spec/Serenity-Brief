@@ -1,0 +1,23 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+credentials*.json
+service-account*.json
+token*.json
+.clasp.json
+
+# Local tools, dependencies and system files
+.tools/
+node_modules/
+.DS_Store
+*.log
+
+# Test screenshots and temporary output
+*-test.png
+audit-*.png
+public-*.png
+tmp/
+dist/
