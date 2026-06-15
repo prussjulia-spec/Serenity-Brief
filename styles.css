@@ -434,6 +434,23 @@ button {
   gap: 23px;
 }
 
+.field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.optional-note {
+  margin: -4px 0 22px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f5f3fb;
+  color: #6f687d;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .field label,
 .field legend {
   display: block;

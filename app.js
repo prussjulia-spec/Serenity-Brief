@@ -7,6 +7,25 @@ const budgetOptions = [
   "Бюджет пока не определён, нужна помощь с оценкой"
 ];
 
+const primaryBudgetOptions = [
+  "Пока не понимаю",
+  "До 100 000 ₽",
+  "100 000–300 000 ₽",
+  "300 000–700 000 ₽",
+  "700 000 ₽+",
+  "Хочу обсудить"
+];
+
+const primaryDeadlineOptions = [
+  "Как можно скорее",
+  "В течение месяца",
+  "В ближайшие 2–3 месяца",
+  "Пока изучаем варианты",
+  "Не знаю"
+];
+
+const contactMethodOptions = ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"];
+
 const serviceBudgetHelp = "Это поможет сразу предложить реалистичный формат работы. Можно выбрать предварительный диапазон. Без учёта медиабюджета, производства и других внешних расходов.";
 const externalBudgetHelp = "Без учёта услуг Serenity. Можно выбрать предварительный диапазон.";
 const briefCategories = {
@@ -62,19 +81,22 @@ const briefTypes = [
     "Не уверены, какая услуга нужна? Опишите задачу — мы изучим контекст и предложим следующий шаг.",
     "≈ 5 минут",
     [
-      ...commonSections,
-      section("Продукт и продажи", [
-        field("products", "Какие продукты или услуги продаёте?", "textarea", "Что продаётся чаще, что приоритетно развивать?"),
-        field("audience", "Кто ваш основной клиент?", "textarea", "B2B или B2C, отрасль, должность, география"),
-        field("sales", "Как сейчас устроены продажи?", "textarea", "Откуда приходят обращения, кто и как их обрабатывает?"),
-        field("marketing", "Что уже делаете в маркетинге?", "textarea", "Каналы, подрядчики, результаты, неудачные тесты")
+      section("О вас", [
+        field("contact_name", "Ваше имя", "text", "", true),
+        field("company_name", "Компания или проект", "text", "", true),
+        singleChoice("contact_method", "Где удобнее связаться?", contactMethodOptions, "", true),
+        field("contact_value", "Контакт для связи", "text", "Укажите номер, email, username или ссылку", true)
       ]),
-      section("Контекст", [
-        field("competitors", "Кого считаете конкурентами?", "textarea", "Прямые конкуренты и компании, на которые ориентируетесь"),
-        field("strength", "Почему клиенты выбирают вас?", "textarea", "Что чаще всего отмечают клиенты и отдел продаж?"),
-        field("materials", "Какие материалы можно изучить?", "textarea", "Исследования, аналитика, брендбук, презентации, отчёты")
+      section("Задача", [
+        field("request", "Коротко опишите задачу", "textarea", "Достаточно 1–3 предложений", true)
+      ]),
+      section("Дополнительно", [
+        singleChoice("deadline", "Когда хотите начать?", primaryDeadlineOptions),
+        singleChoice("budget", "Есть ли ориентир по бюджету?", primaryBudgetOptions),
+        field("additional", "Что ещё важно добавить?", "textarea", "Ссылки, материалы или дополнительный комментарий")
       ])
-    ]
+    ],
+    false
   ),
   brief(
     "startup",
@@ -416,8 +438,8 @@ function section(title, fields) {
   return { title, fields };
 }
 
-function brief(id, title, description, time, sections) {
-  return { id, title, description, time, sections: [...sections, finalSection] };
+function brief(id, title, description, time, sections, includeFinalSection = true) {
+  return { id, title, description, time, sections: includeFinalSection ? [...sections, finalSection] : sections };
 }
 
 function formatTime(time) {
@@ -496,6 +518,9 @@ function renderBrief() {
               <span>${String(sectionIndex + 1).padStart(2, "0")}</span>
               <h2>${item.title}</h2>
             </div>
+            ${current.id === "primary" && item.title === "Дополнительно"
+              ? `<p class="optional-note">Эти поля можно пропустить, если пока нет ответа.</p>`
+              : ""}
             <div class="fields">
               ${item.fields.map(renderField).join("")}
             </div>
@@ -549,7 +574,8 @@ function renderField(item) {
     company_name: "organization",
     contact_name: "name",
     contact_email: "email",
-    contact_phone: "tel"
+    contact_phone: "tel",
+    contact_value: "on"
   }[item.id];
   const autocompleteAttr = autocomplete ? ` autocomplete="${autocomplete}"` : "";
   const control = item.type === "textarea"
@@ -701,6 +727,8 @@ function makeSubmissionPayload() {
     contactEmail: answers.contact_email || "",
     contactPhone: answers.contact_phone || "",
     contactSocial: answers.contact_social || "",
+    contactMethod: answers.contact_method || "",
+    contactValue: answers.contact_value || "",
     request: answers.request || "",
     budget: answers.budget || "",
     privacyConsent: answers.privacy_consent === "accepted",

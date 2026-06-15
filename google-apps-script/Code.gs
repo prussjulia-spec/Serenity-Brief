@@ -3,6 +3,8 @@ const APP = {
   REGISTRY_SHEET: "Заявки",
   BRIEF_IDS: ["primary", "startup", "strategy", "complex", "performance", "seo", "smm", "website", "ecommerce", "branding", "naming", "pr"],
   BUDGET_OPTIONS: ["До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000–1 500 000 ₽", "Более 1 500 000 ₽", "Бюджет пока не определён, нужна помощь с оценкой"],
+  PRIMARY_BUDGET_OPTIONS: ["Пока не понимаю", "До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000 ₽+", "Хочу обсудить"],
+  CONTACT_METHODS: ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"],
   STATUSES: ["Новая", "Взята в работу", "Уточняем", "Передано специалисту", "КП готовится", "КП отправлено", "Встреча назначена", "Не целевой", "Закрыто"],
   REQUIRED_PROPERTIES: ["RESPONSES_FOLDER_ID", "REGISTRY_SPREADSHEET_ID", "FORM_API_SECRET"]
 };
@@ -74,10 +76,11 @@ function saveBrief(payload) {
       return { ok: true, duplicate: true, documentUrl: existingUrl };
     }
 
-    enforceRateLimit_(payload.contactEmail);
+    enforceRateLimit_(payload.contactEmail || payload.contactValue);
     const documentUrl = createBriefDocument_(payload);
     const submittedAt = new Date();
-    const contact = [payload.contactEmail, payload.contactPhone].filter(Boolean).join("\n");
+    const contact = payload.contactValue || [payload.contactEmail, payload.contactPhone].filter(Boolean).join("\n");
+    const contactMethod = payload.contactMethod || payload.contactSocial;
 
     sheet.appendRow([
       safeCell_(payload.submissionId),
@@ -85,7 +88,7 @@ function saveBrief(payload) {
       safeCell_(payload.companyName),
       safeCell_(payload.contactName),
       safeCell_(contact),
-      safeCell_(payload.contactSocial),
+      safeCell_(contactMethod),
       safeCell_(payload.request),
       safeCell_(payload.budget),
       "Новая",
@@ -119,18 +122,25 @@ function saveBrief(payload) {
 
 function validate_(payload) {
   if (!payload || typeof payload !== "object") throw new Error("Некорректные данные.");
-  if (!payload.submissionId || !payload.briefId || !payload.briefTitle || !payload.companyName || !payload.contactName || !payload.contactEmail || !payload.request || !payload.budget) {
+  const isPrimary = payload.briefId === "primary";
+  const hasPrimaryBasics = payload.companyName && payload.contactName && payload.contactMethod && payload.contactValue && payload.request;
+  const hasStandardBasics = payload.companyName && payload.contactName && payload.contactEmail && payload.request && payload.budget;
+  if (!payload.submissionId || !payload.briefId || !payload.briefTitle || (isPrimary ? !hasPrimaryBasics : !hasStandardBasics)) {
     throw new Error("Не заполнены обязательные поля.");
   }
   if (payload.privacyConsent !== true || !payload.consentAt) throw new Error("Не получено согласие на обработку данных.");
   if (APP.BRIEF_IDS.indexOf(payload.briefId) === -1) throw new Error("Неизвестный тип брифа.");
-  if (APP.BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactEmail)) throw new Error("Некорректный email.");
+  if (!isPrimary && APP.BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
+  if (isPrimary && payload.budget && APP.PRIMARY_BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
+  if (isPrimary && APP.CONTACT_METHODS.indexOf(payload.contactMethod) === -1) throw new Error("Некорректный способ связи.");
+  if (!isPrimary && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactEmail)) throw new Error("Некорректный email.");
+  if (isPrimary && payload.contactMethod === "Email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactValue)) throw new Error("Некорректный email.");
   if (Number(payload.formStartedAt) && Date.now() - Number(payload.formStartedAt) < 2500) throw new Error("Слишком быстрая отправка.");
 
   [
     payload.submissionId, payload.briefTitle, payload.companyName, payload.contactName,
     payload.contactEmail, payload.contactPhone || "", payload.contactSocial || "",
+    payload.contactMethod || "", payload.contactValue || "",
     payload.request || "", payload.budget || ""
   ].forEach(function(value) {
     if (typeof value !== "string" || value.length > 5000) throw new Error("Некорректные данные.");
@@ -352,7 +362,8 @@ function createBriefDocument_(payload) {
   const body = document.getBody();
 
   body.appendParagraph(payload.briefTitle).setHeading(DocumentApp.ParagraphHeading.TITLE);
-  body.appendParagraph(`${payload.companyName} · ${payload.contactName} · ${payload.contactEmail}`);
+  body.appendParagraph(`${payload.companyName} · ${payload.contactName} · ${payload.contactValue || payload.contactEmail}`);
+  if (payload.contactMethod) body.appendParagraph(`Удобный способ связи: ${payload.contactMethod}`);
   if (payload.contactPhone) body.appendParagraph(`Телефон: ${payload.contactPhone}`);
   if (payload.contactSocial) body.appendParagraph(`Мессенджер / соцсеть: ${payload.contactSocial}`);
   body.appendParagraph(`Получено: ${date}`);
@@ -379,8 +390,8 @@ function notifyNewSubmission_(payload, documentUrl, registryUrl) {
   const text = [
     "Новая заявка с брифа Serenity",
     `Компания: ${payload.companyName}`,
-    `Контакт: ${payload.contactName} · ${payload.contactEmail}${payload.contactPhone ? " · " + payload.contactPhone : ""}`,
-    payload.contactSocial ? `Мессенджер: ${payload.contactSocial}` : "",
+    `Контакт: ${payload.contactName} · ${payload.contactValue || payload.contactEmail}${payload.contactPhone ? " · " + payload.contactPhone : ""}`,
+    payload.contactMethod ? `Связаться через: ${payload.contactMethod}` : (payload.contactSocial ? `Мессенджер: ${payload.contactSocial}` : ""),
     payload.request ? `Задача: ${payload.request.slice(0, 500)}` : "",
     payload.budget ? `Бюджет: ${payload.budget}` : "",
     `Бриф: ${payload.briefTitle}`,
