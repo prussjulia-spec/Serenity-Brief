@@ -542,6 +542,28 @@ button {
   color: #fff;
 }
 
+.brief-recommendation {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid #dedee1;
+  border-radius: 14px;
+  color: #68686e;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.brief-recommendation button {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
 .choice input:focus-visible + span,
 button:focus-visible,
 a:focus-visible {
@@ -926,6 +948,18 @@ const primaryDeadlineOptions = [
 ];
 
 const contactMethodOptions = ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"];
+const directionOptions = [
+  "Пока не знаю — нужна помощь с выбором",
+  "Маркетинговая стратегия",
+  "Комплексное продвижение",
+  "Performance-реклама",
+  "SEO",
+  "SMM и контент",
+  "Сайт или интернет-магазин",
+  "Брендинг или нейминг",
+  "PR и репутация",
+  "Другое"
+];
 
 const serviceBudgetHelp = "Это поможет сразу предложить реалистичный формат работы. Можно выбрать предварительный диапазон. Без учёта медиабюджета, производства и других внешних расходов.";
 const externalBudgetHelp = "Без учёта услуг Serenity. Можно выбрать предварительный диапазон.";
@@ -989,9 +1023,13 @@ const briefTypes = [
         field("contact_value", "Контакт для связи", "text", "Укажите номер, email, username или ссылку", true)
       ]),
       section("Задача", [
-        field("request", "Коротко опишите задачу", "textarea", "Достаточно 1–3 предложений", true)
+        field("request", "Коротко опишите задачу", "textarea", "Достаточно 1–3 предложений", true),
+        choice("direction", "Какое направление вас интересует?", directionOptions)
       ]),
       section("Дополнительно", [
+        field("business", "Чем занимается компания или проект?", "textarea", "Коротко: что вы предлагаете и кому"),
+        field("links", "Сайт или социальные сети", "text", "Добавьте ссылки, если они есть"),
+        field("previous_work", "Что уже пробовали? Есть ли текущий подрядчик?", "textarea", "Можно коротко описать опыт и причины поиска нового решения"),
         singleChoice("deadline", "Когда хотите начать?", primaryDeadlineOptions),
         singleChoice("budget", "Есть ли ориентир по бюджету?", primaryBudgetOptions),
         field("additional", "Что ещё важно добавить?", "textarea", "Ссылки, материалы или дополнительный комментарий")
@@ -1018,6 +1056,8 @@ const briefTypes = [
       ]),
       section("Гипотезы и рост", [
         field("segments", "Какие сегменты аудитории рассматриваете?", "textarea"),
+        field("positioning", "Как сформулированы ценность продукта и отличие от альтернатив?", "textarea"),
+        field("competitors", "Какие решения клиенты используют вместо вашего продукта?", "textarea", "Прямые конкуренты и другие способы решить задачу"),
         field("tests", "Какие каналы и гипотезы уже тестировали?", "textarea"),
         singleChoice("test_budget", "Какой бюджет доступен на первые тесты?", budgetOptions, externalBudgetHelp, true)
       ]),
@@ -1025,6 +1065,10 @@ const briefTypes = [
         choice("strategy_output", "Что должно быть в результате?", ["Маркетинговая стратегия", "Growth-стратегия", "Unit-экономика", "Финансовая модель", "Воронка и roadmap тестов", "Материалы для инвесторов"]),
         field("horizon", "На какой горизонт нужен план?", "text", "3, 6 или 12 месяцев"),
         field("metrics", "Какие метрики для проекта ключевые?", "textarea")
+      ]),
+      section("Дополнительные вводные", [
+        field("materials", "Какие исследования и материалы уже можно изучить?", "textarea", "Интервью, исследования рынка, презентации, брендбук"),
+        field("additional", "Что ещё важно учесть при оценке задачи?", "textarea")
       ])
     ]
   ),
@@ -1052,6 +1096,11 @@ const briefTypes = [
         field("funnel", "Как выглядит путь от первого контакта до покупки?", "textarea", "Этапы, конверсии, срок сделки"),
         field("analytics", "Какие данные доступны?", "textarea", "CRM, сквозная аналитика, исследования, отчёты"),
         field("team", "Кто будет реализовывать стратегию?", "textarea", "Внутренняя команда, подрядчики, план найма")
+      ]),
+      section("Дополнительные вводные", [
+        field("positioning", "Как сформулированы ценность компании и отличие от конкурентов?", "textarea"),
+        field("materials", "Какие исследования и материалы уже можно изучить?", "textarea", "Исследования, отчёты, маркетинг-кит, брендбук"),
+        field("additional", "Что ещё важно учесть при оценке задачи?", "textarea")
       ])
     ]
   ),
@@ -1080,6 +1129,12 @@ const briefTypes = [
         field("sales_team", "Как отдел продаж работает с обращениями?", "textarea"),
         field("crm", "Какие системы аналитики и CRM подключены?", "textarea"),
         field("kpi", "Какие показатели должны измениться?", "textarea")
+      ]),
+      section("Дополнительные вводные", [
+        field("contractor", "Есть ли текущие подрядчики и что важно изменить в работе?", "textarea"),
+        field("resources", "Какие ресурсы доступны внутри команды?", "textarea", "Разработчик, контент-менеджер, дизайнер, эксперты"),
+        field("materials", "Какие материалы уже готовы?", "textarea", "Фото, видео, креативы, брендбук, исследования"),
+        field("additional", "Есть ли другие сайты, продукты или вводные, которые важно учесть?", "textarea")
       ])
     ]
   ),
@@ -1099,7 +1154,7 @@ const briefTypes = [
       section("Реклама сейчас", [
         choice("platforms", "Какие площадки уже использовали?", ["Яндекс Директ", "Google Ads", "VK Реклама", "Telegram Ads", "Другие", "Не запускали"]),
         field("results", "Какие результаты получили?", "textarea", "Бюджет, показы, клики, заявки, продажи"),
-        field("access", "Какие доступы и данные можно предоставить?", "textarea", "Кабинеты, Метрика, Analytics, CRM, коллтрекинг"),
+        field("analytics", "Какая аналитика и CRM уже подключены?", "textarea", "Метрика, Analytics, CRM, коллтрекинг"),
         field("landing", "Куда ведём рекламу?", "textarea", "Ссылки и известные проблемы посадочных страниц")
       ]),
       section("Цели теста", [
@@ -1107,6 +1162,12 @@ const briefTypes = [
         field("lead_quality", "Какая заявка считается качественной?", "textarea"),
         singleChoice("media_budget", "Какой медиабюджет планируете?", budgetOptions, externalBudgetHelp, true),
         field("reporting", "Кому и как часто нужны результаты?", "textarea")
+      ]),
+      section("Дополнительные вводные", [
+        field("contractor", "Есть ли текущий подрядчик и почему рассматриваете изменения?", "textarea"),
+        field("resources", "Есть ли разработчик или контент-менеджер для оперативных правок?", "textarea"),
+        field("assets", "Какие материалы для рекламы уже готовы?", "textarea", "Фото, видео, креативы, товарный фид"),
+        field("additional", "Есть ли другие сайты, продукты или вводные, которые важно учесть?", "textarea")
       ])
     ]
   ),
@@ -1127,13 +1188,19 @@ const briefTypes = [
         field("history", "Что уже делали по SEO?", "textarea", "Подрядчики, работы, сроки, результаты"),
         field("problems", "Какие проблемы сайта уже известны?", "textarea"),
         field("analytics", "Какая аналитика подключена?", "textarea"),
-        field("access", "Можно ли предоставить доступы?", "textarea", "Метрика, Search Console, CMS, панели вебмастеров")
+        field("contractor", "Если меняете подрядчика, что важно улучшить в работе?", "textarea")
       ]),
       section("Контент и конкуренты", [
         field("competitors", "С кем конкурируете в поиске?", "textarea"),
         field("content", "Кто может готовить и согласовывать контент?", "textarea"),
         field("expertise", "Какие эксперты доступны внутри компании?", "textarea"),
         field("kpi", "Какой результат SEO важен бизнесу?", "textarea")
+      ]),
+      section("Дополнительные вводные", [
+        field("developer", "Есть ли разработчик для технических изменений на сайте?", "textarea"),
+        field("other_sites", "Есть ли у компании другие сайты?", "textarea", "Добавьте ссылки, если их нужно учитывать"),
+        field("materials", "Какие отчёты, исследования или материалы уже можно изучить?", "textarea"),
+        field("additional", "Что ещё важно учесть при оценке SEO-задачи?", "textarea")
       ])
     ]
   ),
@@ -1166,13 +1233,17 @@ const briefTypes = [
   ),
   brief(
     "website",
-    "Сайт или лендинг",
+    "Бриф на сайт",
     "Для запуска или обновления сайта. Оценим задачи, материалы, функциональность и объём разработки.",
     "≈ 15 минут",
     [
       ...commonSections,
       section("Задача сайта", [
-        choice("site_type", "Что нужно разработать?", ["Корпоративный сайт", "Лендинг", "Интернет-магазин", "Сервис", "Редизайн", "Пока не знаем"]),
+        singleChoice("site_type", "Тип сайта", [
+          "Лендинг — одностраничный сайт",
+          "Корпоративный сайт / сайт-каталог — сайт компании, услуг или каталог товаров",
+          "Интернет-магазин — сайт для продажи товаров с покупкой онлайн"
+        ], "Для интернет-магазина рекомендуем отдельный профильный бриф — он поможет точнее оценить каталог, оплату, доставку и интеграции."),
         field("site_goal", "Какую главную задачу должен решать сайт?", "textarea", "", true),
         field("current_site", "Есть ли текущий сайт?", "text"),
         field("problems", "Что в текущем сайте не устраивает?", "textarea")
@@ -1188,6 +1259,11 @@ const briefTypes = [
         field("cms", "Есть ли требования к CMS и технологиям?", "textarea"),
         field("references", "Какие сайты нравятся и почему?", "textarea"),
         field("support", "Кто будет обновлять сайт после запуска?", "textarea")
+      ]),
+      section("Дополнительные вводные", [
+        field("brand_assets", "Есть ли логотип, фирменный стиль и исходные материалы?", "textarea"),
+        field("success", "По каким признакам вы поймёте, что сайт решает задачу?", "textarea"),
+        field("additional", "Что ещё важно учесть при оценке сайта?", "textarea")
       ])
     ]
   ),
@@ -1468,6 +1544,12 @@ function renderField(item) {
             </label>
           `).join("")}
         </div>
+        ${item.id === "site_type"
+          ? `<div class="brief-recommendation" data-site-recommendation hidden>
+              Для интернет-магазина лучше заполнить отдельный профильный бриф.
+              <button type="button" data-brief="ecommerce">Перейти к брифу интернет-магазина →</button>
+            </div>`
+          : ""}
       </fieldset>
     `;
   }
@@ -1539,6 +1621,7 @@ function fillAnswers() {
       controls.value = value;
     }
   });
+  updateSiteRecommendation();
 }
 
 function saveAnswers() {
@@ -1572,6 +1655,12 @@ function updateProgress() {
   const bar = document.querySelector(".progress span");
   if (value) value.textContent = `${progress}%`;
   if (bar) bar.style.width = `${progress}%`;
+}
+
+function updateSiteRecommendation() {
+  const recommendation = document.querySelector("[data-site-recommendation]");
+  if (!recommendation) return;
+  recommendation.hidden = state.answers[state.briefId]?.site_type !== "Интернет-магазин — сайт для продажи товаров с покупкой онлайн";
 }
 
 function readStorage(key) {
@@ -1754,6 +1843,7 @@ document.addEventListener("click", async (event) => {
 document.addEventListener("input", (event) => {
   if (!event.target.closest("#brief-form")) return;
   saveAnswers();
+  updateSiteRecommendation();
 });
 
 document.addEventListener("submit", async (event) => {
