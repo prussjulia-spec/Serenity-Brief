@@ -156,7 +156,7 @@ function validate_(payload) {
   });
   if (payload.briefId === "startup") validateBudgetAnswer_(payload.sections, "Какой бюджет доступен на первые тесты?");
   if (payload.briefId === "complex") validateBudgetAnswer_(payload.sections, "Какой медиабюджет планируете?");
-  if (payload.briefId === "performance") validateBudgetAnswer_(payload.sections, "Какой суммарный бюджет вы рассматриваете на performance-рекламу?", APP.PERFORMANCE_BUDGET_OPTIONS);
+  if (payload.briefId === "performance") validatePerformanceAnswers_(payload.sections);
   if (JSON.stringify(payload).length > 150000) throw new Error("Бриф слишком большой.");
 }
 
@@ -164,6 +164,18 @@ function validateBudgetAnswer_(sections, question, options) {
   const answer = findAnswerInSections_(sections, [question]);
   const allowedOptions = options || APP.BUDGET_OPTIONS;
   if (allowedOptions.indexOf(answer) === -1) throw new Error("Не заполнен обязательный бюджетный вопрос.");
+}
+
+function validatePerformanceAnswers_(sections) {
+  validateBudgetAnswer_(sections, "Какой суммарный бюджет вы рассматриваете на performance-рекламу?", APP.PERFORMANCE_BUDGET_OPTIONS);
+  [
+    "Сайт / ссылка на проект",
+    "Где планируете показывать рекламу?",
+    "Какой средний чек?",
+    "Ссылки на посадочные страницы, которые вы хотите продвигать"
+  ].forEach(function(question) {
+    if (!findAnswerInSections_(sections, [question])) throw new Error("Не заполнено обязательное поле Performance-брифа.");
+  });
 }
 
 function enforceRateLimit_(email) {

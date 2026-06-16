@@ -1010,6 +1010,18 @@ const commonSections = [
   }
 ];
 
+const performanceAboutSection = {
+  title: "О вас и компании",
+  fields: [
+    field("company_name", "Название компании", "text", "Как вас правильно называть?", true),
+    field("contact_name", "Как к вам обращаться?", "text", "Имя и должность", true),
+    field("contact_email", "Email для связи", "email", "Используем, чтобы связаться по задаче", true),
+    field("contact_phone", "Телефон", "tel", "Укажите, если удобно созвониться или написать в мессенджере"),
+    field("contact_social", "Мессенджер или соцсеть", "text", "Например: @username в Telegram или ссылка на профиль"),
+    field("business", "Что важно знать о вашем бизнесе для этой задачи?", "textarea", "Ниша, регион, особенности бизнеса, ограничения, сезонность или другие важные детали.")
+  ]
+};
+
 const publicConfig = {
   privacyPolicyUrl: "https://serenity.agency/privacy.pdf",
   submissionEndpoint: "/api/submit"
@@ -1154,7 +1166,7 @@ const briefTypes = [
     "Для запуска или улучшения платной рекламы. Оценим продукт, экономику и план привлечения клиентов.",
     "≈ 30 минут",
     [
-      commonSections[0],
+      performanceAboutSection,
       section("Продукт и экономика", [
         field("offer", "Что именно рекламируем?", "textarea", "Продукты, услуги и приоритетные предложения"),
         field("site", "Сайт / ссылка на проект", "text", "Основной сайт, каталог, лендинг или карточка продукта", true),
@@ -1175,15 +1187,14 @@ const briefTypes = [
       section("Цели теста", [
         choice("goals", "Какие цели у performance-рекламы?", ["Заявки", "Продажи на сайте", "Звонки", "Регистрации", "Продвижение конкретного продукта", "Возврат аудитории", "Тест спроса", "Другое"]),
         choice("target", "Какое целевое действие считаем главным?", ["Покупка", "Заявка", "Звонок", "Регистрация", "Сообщение в мессенджер", "Запись на консультацию", "Пока не знаем"]),
-        field("lead_quality", "Какая заявка считается качественной?", "textarea"),
-        field("reporting", "Кому и как часто нужны результаты?", "textarea")
+        field("lead_quality", "Какая заявка считается качественной?", "textarea")
       ]),
       section("Дополнительные вводные", [
         field("contractor", "Есть ли текущий подрядчик и почему рассматриваете изменения?", "textarea"),
         choice("resources", "Кто может помогать с оперативными правками?", ["Разработчик", "Дизайнер", "Контент-менеджер", "Маркетолог", "Менеджер продаж", "Пока никто", "Не знаю"]),
-        choice("assets", "Какие материалы для рекламы уже готовы?", ["Фото", "Видео", "Креативы", "Тексты", "Товарный фид", "Каталог", "Брендбук", "Пока ничего"]),
+        choice("assets", "Какие материалы для рекламы уже готовы?", ["Фото", "Видео", "Креативы", "Тексты", "Товарный фид", "Баннеры", "Ничего пока нет", "Другое"]),
+        field("assets_comment", "Комментарий по материалам", "textarea", "Если выбрали «Другое» или нужно пояснить готовность материалов."),
         field("additional_links", "Если есть дополнительные сайты, соцсети или другие площадки — укажите ссылки.", "textarea"),
-        field("additional", "Что важно знать о вашем бизнесе для этой задачи?", "textarea", "Ниша, регион, особенности продукта, ограничения, сезонность или другие важные детали."),
         field("source", "Как вы о нас узнали?", "text")
       ])
     ],
@@ -1724,6 +1735,9 @@ function makeTextSummary() {
 function makeSubmissionPayload() {
   const current = getCurrentBrief();
   const answers = state.answers[state.briefId] || {};
+  const request = current.id === "performance"
+    ? (answers.offer || answers.landing || "")
+    : (answers.request || "");
 
   return {
     submissionId: getSubmissionId(),
@@ -1737,7 +1751,7 @@ function makeSubmissionPayload() {
     contactSocial: answers.contact_social || "",
     contactMethod: answers.contact_method || "",
     contactValue: answers.contact_value || "",
-    request: answers.request || "",
+    request,
     budget: answers.budget || "",
     privacyConsent: answers.privacy_consent === "accepted",
     consentAt: answers.privacy_consent === "accepted" ? new Date().toISOString() : "",
