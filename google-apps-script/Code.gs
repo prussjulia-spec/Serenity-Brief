@@ -4,6 +4,7 @@ const APP = {
   BRIEF_IDS: ["primary", "startup", "strategy", "complex", "performance", "seo", "smm", "website", "ecommerce", "branding", "naming", "pr"],
   BUDGET_OPTIONS: ["До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000–1 500 000 ₽", "Более 1 500 000 ₽", "Бюджет пока не определён, нужна помощь с оценкой"],
   PRIMARY_BUDGET_OPTIONS: ["Пока не понимаю", "До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000 ₽+", "Хочу обсудить"],
+  PERFORMANCE_BUDGET_OPTIONS: ["Пока не знаем", "До 300 000 ₽", "300 000–700 000 ₽", "700 000–1 500 000 ₽", "1 500 000 ₽+", "Хочу обсудить"],
   CONTACT_METHODS: ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"],
   STATUSES: ["Новая", "Взята в работу", "Уточняем", "Передано специалисту", "КП готовится", "КП отправлено", "Встреча назначена", "Не целевой", "Закрыто"],
   CLIENT_BRIEFS_FOLDER_ID: "1jQOtrhreUuquWiI1BI8-G19vK5X9g8FA",
@@ -131,7 +132,8 @@ function validate_(payload) {
   }
   if (payload.privacyConsent !== true || !payload.consentAt) throw new Error("Не получено согласие на обработку данных.");
   if (APP.BRIEF_IDS.indexOf(payload.briefId) === -1) throw new Error("Неизвестный тип брифа.");
-  if (!isPrimary && APP.BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
+  if (payload.briefId === "performance" && APP.PERFORMANCE_BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
+  if (!isPrimary && payload.briefId !== "performance" && APP.BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
   if (isPrimary && payload.budget && APP.PRIMARY_BUDGET_OPTIONS.indexOf(payload.budget) === -1) throw new Error("Некорректная категория бюджета.");
   if (isPrimary && APP.CONTACT_METHODS.indexOf(payload.contactMethod) === -1) throw new Error("Некорректный способ связи.");
   if (!isPrimary && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactEmail)) throw new Error("Некорректный email.");
@@ -153,13 +155,15 @@ function validate_(payload) {
     }
   });
   if (payload.briefId === "startup") validateBudgetAnswer_(payload.sections, "Какой бюджет доступен на первые тесты?");
-  if (payload.briefId === "complex" || payload.briefId === "performance") validateBudgetAnswer_(payload.sections, "Какой медиабюджет планируете?");
+  if (payload.briefId === "complex") validateBudgetAnswer_(payload.sections, "Какой медиабюджет планируете?");
+  if (payload.briefId === "performance") validateBudgetAnswer_(payload.sections, "Какой суммарный бюджет вы рассматриваете на performance-рекламу?", APP.PERFORMANCE_BUDGET_OPTIONS);
   if (JSON.stringify(payload).length > 150000) throw new Error("Бриф слишком большой.");
 }
 
-function validateBudgetAnswer_(sections, question) {
+function validateBudgetAnswer_(sections, question, options) {
   const answer = findAnswerInSections_(sections, [question]);
-  if (APP.BUDGET_OPTIONS.indexOf(answer) === -1) throw new Error("Не заполнен обязательный бюджетный вопрос.");
+  const allowedOptions = options || APP.BUDGET_OPTIONS;
+  if (allowedOptions.indexOf(answer) === -1) throw new Error("Не заполнен обязательный бюджетный вопрос.");
 }
 
 function enforceRateLimit_(email) {
@@ -221,7 +225,7 @@ function migrateRegistry_(sheet) {
       [email, phone].filter(Boolean).join("\n"),
       value(row, ["Мессенджер", "Мессенджер / соцсеть"]),
       findAnswerInJson_(json, ["С чем вы пришли к Serenity?"]),
-      findAnswerInJson_(json, ["Какой бюджет планируете на услуги Serenity?", "Какой бюджет планируете?", "Какой бюджет готовы выделить на тесты?", "Какой бюджет готов выделить бизнес?"]),
+      findAnswerInJson_(json, ["Какой бюджет планируете на услуги Serenity?", "Какой бюджет планируете?", "Какой бюджет готовы выделить на тесты?", "Какой бюджет готов выделить бизнес?", "Какой суммарный бюджет вы рассматриваете на performance-рекламу?"]),
       normalizeStatus_(value(row, ["Статус"])),
       value(row, ["Ответственный"]),
       value(row, ["Комментарий менеджера", "Комментарий"]),
