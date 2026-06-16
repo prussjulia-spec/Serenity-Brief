@@ -6,7 +6,7 @@
 
 | Свойство | Что хранит |
 | --- | --- |
-| `RESPONSES_FOLDER_ID` | ID папки Google Drive для документов с ответами |
+| `RESPONSES_FOLDER_ID` | ID рабочей папки с брифами Serenity |
 | `REGISTRY_SPREADSHEET_ID` | ID Google Sheets с реестром заявок |
 | `FORM_API_SECRET` | длинная случайная строка для связи Cloudflare Pages и Apps Script |
 
@@ -35,6 +35,8 @@
 | `PUBLIC_FORM_URL` | рабочий адрес формы, обычно `https://brief.serenity.agency` |
 
 Ссылка на политику автоматически подставляется в форму из свойства `PRIVACY_POLICY_URL` при открытии опубликованного Web app.
+
+Документы с полными ответами клиентов сохраняются в подпапку «Брифы клиентов» по константе `APP.CLIENT_BRIEFS_FOLDER_ID` в `google-apps-script/Code.gs`. Это защищает от дублей папок с похожими названиями.
 
 ## Cloudflare Pages
 

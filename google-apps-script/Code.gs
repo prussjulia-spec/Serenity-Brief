@@ -6,6 +6,7 @@ const APP = {
   PRIMARY_BUDGET_OPTIONS: ["Пока не понимаю", "До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000 ₽+", "Хочу обсудить"],
   CONTACT_METHODS: ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"],
   STATUSES: ["Новая", "Взята в работу", "Уточняем", "Передано специалисту", "КП готовится", "КП отправлено", "Встреча назначена", "Не целевой", "Закрыто"],
+  CLIENT_BRIEFS_FOLDER_ID: "1jQOtrhreUuquWiI1BI8-G19vK5X9g8FA",
   REQUIRED_PROPERTIES: ["RESPONSES_FOLDER_ID", "REGISTRY_SPREADSHEET_ID", "FORM_API_SECRET"]
 };
 
@@ -465,7 +466,7 @@ function jsonResponse_(value) {
 
 function moveFileToFolder_(fileId) {
   const file = DriveApp.getFileById(fileId);
-  const folder = DriveApp.getFolderById(getProperty_("RESPONSES_FOLDER_ID"));
+  const folder = DriveApp.getFolderById(APP.CLIENT_BRIEFS_FOLDER_ID);
   file.moveTo(folder);
 }
 

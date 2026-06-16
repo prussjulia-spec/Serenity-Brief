@@ -8,7 +8,7 @@
 
 Перед первым запуском задайте обязательные свойства Apps Script:
 
-- `RESPONSES_FOLDER_ID`;
+- `RESPONSES_FOLDER_ID` — рабочая папка с брифами Serenity;
 - `REGISTRY_SPREADSHEET_ID`;
 - `FORM_API_SECRET`.
 
