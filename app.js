@@ -25,6 +25,8 @@ const performanceBudgetOptions = [
   "Хочу обсудить"
 ];
 
+const sourceOptions = ["Рекомендация", "Поиск (Google, Яндекс)", "Соцсети", "Реклама", "Уже работали с Serenity", "Мероприятие / публикация", "Другое"];
+
 const primaryDeadlineOptions = [
   "Как можно скорее",
   "В течение месяца",
@@ -271,8 +273,7 @@ const briefTypes = [
         choice("resources", "Кто может помогать с оперативными правками?", ["Разработчик", "Дизайнер", "Контент-менеджер", "Маркетолог", "Менеджер продаж", "Пока никто", "Не знаю"]),
         choice("assets", "Какие материалы для рекламы уже готовы?", ["Фото", "Видео", "Креативы", "Тексты", "Товарный фид", "Баннеры", "Ничего пока нет", "Другое"]),
         field("assets_comment", "Комментарий по материалам", "textarea", "Если выбрали «Другое» или нужно пояснить готовность материалов."),
-        field("additional_links", "Если есть дополнительные сайты, соцсети или другие площадки — укажите ссылки.", "textarea"),
-        field("source", "Как вы о нас узнали?", "text")
+        field("additional_links", "Если есть дополнительные сайты, соцсети или другие площадки — укажите ссылки.", "textarea")
       ])
     ],
     false
@@ -522,7 +523,14 @@ function section(title, fields) {
 }
 
 function brief(id, title, description, time, sections, includeFinalSection = true) {
-  return { id, title, description, time, sections: includeFinalSection ? [...sections, finalSection] : sections };
+  const withSource = sections.map((s, i) => {
+    if (i !== sections.length - 1 || s.fields.some(f => f.id === "source")) return s;
+    return { ...s, fields: [...s.fields,
+      choice("source", "Как вы о нас узнали?", sourceOptions),
+      field("source_other", "Уточните источник", "text", "Если выбрали «Другое» или хотите добавить детали")
+    ]};
+  });
+  return { id, title, description, time, sections: includeFinalSection ? [...withSource, finalSection] : withSource };
 }
 
 function formatTime(time) {
