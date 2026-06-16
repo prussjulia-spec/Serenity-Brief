@@ -20,4 +20,3 @@ node_modules/
 audit-*.png
 public-*.png
 tmp/
-dist/
