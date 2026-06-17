@@ -2,5 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "serenity-brief",
   "pages_build_output_dir": "./dist",
-  "compatibility_date": "2026-06-13"
+  "compatibility_date": "2026-06-13",
+  "kv_namespaces": [
+    { "binding": "SESSIONS", "id": "8987bc15a011482c8ac1263d4b19442e" }
+  ]
 }
