@@ -15,7 +15,7 @@ await Promise.all([
   cp(new URL("./admin/admin.css", import.meta.url),  new URL("./admin/admin.css", output)),
   writeFile(new URL("./_routes.json", output), JSON.stringify({
     version: 1,
-    include: ["/api/*", "/api/admin/*"],
+    include: ["/api/*"],
     exclude: []
   }, null, 2)),
   writeFile(new URL("./_headers", output), `/*
