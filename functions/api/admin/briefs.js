@@ -1,5 +1,5 @@
 // GET  /api/admin/briefs        → list all briefs from Sheets
-// PATCH /api/admin/briefs       → update status/responsible/comment/nextStep
+// PATCH /api/admin/briefs       → update status/responsible/amoLink
 
 export async function onRequest({ request, env }) {
   // Cloudflare Access is the primary auth guard (/admin* policy in CF dashboard).
@@ -35,7 +35,7 @@ async function handlePatch(request, env) {
     return respond({ ok: false, message: "Некорректные данные." }, 400);
   }
 
-  const allowed = ["status", "responsible", "comment", "nextStep"];
+  const allowed = ["status", "responsible", "amoLink"];
   const updates = {};
   for (const key of allowed) {
     if (key in body.updates) updates[key] = String(body.updates[key] ?? "").slice(0, 2000);

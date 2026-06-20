@@ -1,59 +1,65 @@
-const STATUSES = [
-  "Новая", "Взята в работу", "Уточняем", "Передано специалисту",
-  "КП готовится", "КП отправлено", "Встреча назначена",
-  "Не целевой", "Закрыто", "Тест"
+const BRIEFS = [
+  ["primary", "Первичный бриф"],
+  ["startup", "Стратегия для стартапа"],
+  ["strategy", "Маркетинговая стратегия"],
+  ["complex", "Комплексное продвижение"],
+  ["performance", "Performance-реклама"],
+  ["seo", "SEO и органический трафик"],
+  ["smm", "SMM и контент"],
+  ["website", "Бриф на сайт"],
+  ["ecommerce", "Интернет-магазин"],
+  ["branding", "Брендинг и фирменный стиль"],
+  ["naming", "Нейминг"],
+  ["pr", "PR и репутация"]
 ];
 
-const ACTIVE_STATUSES = new Set([
-  "Взята в работу", "Уточняем", "Передано специалисту",
-  "КП готовится", "КП отправлено", "Встреча назначена"
-]);
-
-const CLOSED_STATUSES = new Set(["Не целевой", "Закрыто"]);
-
-const STATUS_CLASS = {
-  "Новая": "s-new",
-  "Взята в работу": "s-active",
-  "Уточняем": "s-clarify",
-  "Передано специалисту": "s-assigned",
-  "КП готовится": "s-kp",
-  "КП отправлено": "s-sent",
-  "Встреча назначена": "s-meeting",
-  "Не целевой": "s-junk",
-  "Закрыто": "s-closed",
-  "Тест": "s-test"
-};
+const BRIEF_TITLE_TO_ID = Object.fromEntries(BRIEFS.map(function (item) { return [item[1], item[0]]; }));
 
 let briefs = [];
 let currentFilter = "all";
 let currentId = null;
+let loadedAt = null;
+let savedPanelState = "";
+let closeAfterConfirm = null;
 
 document.addEventListener("DOMContentLoaded", function () {
   initFilters();
   initPanel();
+  initCreateModal();
+  el("btn-refresh").addEventListener("click", loadBriefs);
+  window.addEventListener("beforeunload", function (event) {
+    if (!hasUnsavedChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   loadBriefs();
 });
-
-// ── Data ────────────────────────────────────────────────────────────────────
 
 async function loadBriefs() {
   show("loading");
   hide("error");
   hide("empty");
   hide("list");
+  el("btn-refresh").disabled = true;
 
   try {
     const res = await fetch("/api/admin/briefs");
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.message || "Ошибка сервера");
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok || !data.ok) {
+      if (res.status === 401) throw new Error("Сессия доступа закончилась. Обновите страницу и войдите снова.");
+      throw new Error(data.message || "Не удалось получить данные.");
+    }
     briefs = data.briefs || [];
+    loadedAt = new Date();
     hide("loading");
+    renderLoadedAt();
     renderStats();
     renderList();
   } catch (err) {
     hide("loading");
-    showError("Не удалось загрузить заявки: " + err.message);
+    showError(err.message || "Не удалось загрузить заявки.");
+  } finally {
+    el("btn-refresh").disabled = false;
   }
 }
 
@@ -61,46 +67,31 @@ async function patchBrief(submissionId, updates) {
   const res = await fetch("/api/admin/briefs", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ submissionId, updates })
+    body: JSON.stringify({ submissionId: submissionId, updates: updates })
   });
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.message || "Ошибка сохранения");
+  const data = await res.json().catch(function () { return {}; });
+  if (!res.ok || !data.ok) throw new Error(data.message || "Не удалось сохранить изменения.");
   return data;
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
-
 function getFiltered() {
   return briefs.filter(function (b) {
-    if (currentFilter === "all") return b.status !== "Тест";
     if (currentFilter === "new") return b.status === "Новая";
-    if (currentFilter === "active") return ACTIVE_STATUSES.has(b.status);
-    if (currentFilter === "closed") return CLOSED_STATUSES.has(b.status);
-    if (currentFilter === "test") return b.status === "Тест";
-    return true;
+    return b.status !== "Тест";
   });
 }
 
 function renderStats() {
-  const real = briefs.filter(function (b) { return b.status !== "Тест"; });
+  const total = briefs.filter(function (b) { return b.status !== "Тест"; }).length;
   const newCount = briefs.filter(function (b) { return b.status === "Новая"; }).length;
-  const activeCount = briefs.filter(function (b) { return ACTIVE_STATUSES.has(b.status); }).length;
-  const testCount = briefs.filter(function (b) { return b.status === "Тест"; }).length;
-
   el("stats").innerHTML =
-    mkStat(real.length, "всего") +
-    mkStat(newCount, "новых", "s-new") +
-    mkStat(activeCount, "в работе", "s-active") +
-    (testCount ? mkStat(testCount, "тест", "s-test") : "");
-}
-
-function mkStat(n, label, cls) {
-  return '<span class="stat"><b class="' + (cls || "") + '">' + n + '</b> ' + esc(label) + '</span>';
+    '<span class="stat"><b>' + total + '</b> всего</span>' +
+    '<span class="stat"><b class="s-new">' + newCount + '</b> новых</span>';
 }
 
 function renderList() {
   const items = getFiltered().slice().sort(function (a, b) {
-    return b.date > a.date ? 1 : -1;
+    return parseDate(b.date) - parseDate(a.date);
   });
 
   if (!items.length) {
@@ -111,22 +102,23 @@ function renderList() {
 
   hide("empty");
   show("list");
-
   el("list").innerHTML = items.map(function (b) {
+    const owner = b.responsible
+      ? '<span class="card-owner">Менеджер: ' + esc(b.responsible) + '</span>'
+      : '<span class="card-owner owner-missing">Менеджер не указан</span>';
     return (
-      '<div class="card" data-id="' + esc(b.submissionId) + '">' +
-        '<div class="card-main">' +
-          '<div class="card-company">' + esc(b.company || "—") + '</div>' +
-          '<div class="card-meta">' + esc(b.name || "") + (b.contact ? " · " + esc(b.contact) : "") + '</div>' +
-          (b.request ? '<div class="card-request">' + esc(b.request.slice(0, 120)) + '</div>' : "") +
-        '</div>' +
-        '<div class="card-side">' +
-          '<span class="badge ' + (STATUS_CLASS[b.status] || "") + '">' + esc(b.status) + '</span>' +
-          '<span class="card-type">' + esc(b.briefTitle || "") + '</span>' +
-          '<span class="card-date">' + esc(shortDate(b.date)) + '</span>' +
-          (b.responsible ? '<span class="card-owner">' + esc(b.responsible) + '</span>' : "") +
-        '</div>' +
-      '</div>'
+      '<button class="card" type="button" data-id="' + esc(b.submissionId) + '">' +
+        '<span class="card-main">' +
+          '<span class="card-company">' + esc(b.company || "Без названия") + '</span>' +
+          '<span class="card-meta">' + esc(b.name || "") + (b.contact ? " · " + esc(b.contact) : "") + '</span>' +
+          owner +
+        '</span>' +
+        '<span class="card-side">' +
+          (b.status === "Новая" ? '<span class="badge s-new">Новая</span>' : "") +
+          '<span class="card-type">' + esc(b.briefTitle || "Бриф") + '</span>' +
+          '<span class="card-date">' + esc(b.date || "") + '</span>' +
+        '</span>' +
+      '</button>'
     );
   }).join("");
 
@@ -135,48 +127,49 @@ function renderList() {
   });
 }
 
-// ── Filters ──────────────────────────────────────────────────────────────────
-
 function initFilters() {
-  el("filters").addEventListener("click", function (e) {
-    const btn = e.target.closest(".filter");
+  el("filters").addEventListener("click", function (event) {
+    const btn = event.target.closest(".filter");
     if (!btn) return;
-    el("filters").querySelectorAll(".filter").forEach(function (f) { f.classList.remove("active"); });
+    el("filters").querySelectorAll(".filter").forEach(function (item) { item.classList.remove("active"); });
     btn.classList.add("active");
     currentFilter = btn.dataset.filter;
     renderList();
   });
 }
 
-// ── Panel ────────────────────────────────────────────────────────────────────
-
 function initPanel() {
-  el("overlay").addEventListener("click", closePanel);
-  el("panel-close").addEventListener("click", closePanel);
+  el("overlay").addEventListener("click", function () {
+    if (!el("create-modal").classList.contains("hidden")) {
+      closeCreateModal();
+      return;
+    }
+    requestClose();
+  });
+  el("panel-close").addEventListener("click", requestClose);
   el("btn-save").addEventListener("click", saveChanges);
   el("btn-doc").addEventListener("click", openDoc);
-  el("btn-copy-link").addEventListener("click", copyLink);
+  el("btn-copy-link").addEventListener("click", copyGeneralBriefLink);
   el("btn-mark-test").addEventListener("click", toggleTest);
+  ["field-responsible", "field-amo"].forEach(function (id) {
+    el(id).addEventListener("input", updateDirtyState);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !el("panel").classList.contains("hidden")) requestClose();
+  });
 }
 
 function openPanel(submissionId) {
-  const b = briefs.find(function (x) { return x.submissionId === submissionId; });
+  const b = briefs.find(function (item) { return item.submissionId === submissionId; });
   if (!b) return;
   currentId = submissionId;
 
   el("panel-title").textContent = b.company || "Заявка";
-  el("panel-meta").textContent = [b.briefTitle, b.budget, b.date ? shortDate(b.date) : ""].filter(Boolean).join(" · ");
-
-  const select = el("field-status");
-  select.innerHTML = STATUSES.map(function (s) {
-    return '<option value="' + esc(s) + '"' + (s === b.status ? " selected" : "") + '>' + esc(s) + '</option>';
-  }).join("");
-
+  el("panel-meta").textContent = [b.briefTitle, b.date].filter(Boolean).join(" · ");
   el("field-responsible").value = b.responsible || "";
-  el("field-next-step").value = b.nextStep || "";
-  el("field-comment").value = b.comment || "";
+  el("field-amo").value = b.amoLink || "";
   el("save-msg").textContent = "";
-  el("save-msg").className = "save-msg";
+  el("test-msg").textContent = "";
 
   const fields = [
     ["Компания", b.company],
@@ -185,22 +178,38 @@ function openPanel(submissionId) {
     ["Мессенджер", b.messenger],
     ["Бюджет", b.budget],
     ["Задача", b.request],
-    ["Дата заявки", b.date],
-    ["Последнее касание", b.lastTouch],
-    ["Ссылка amoCRM", b.amoLink]
-  ].filter(function (f) { return f[1]; });
-
-  el("brief-fields").innerHTML = fields.map(function (f) {
-    return '<div class="brief-field"><dt class="bf-label">' + esc(f[0]) + '</dt><dd class="bf-value">' + esc(String(f[1])) + '</dd></div>';
+    ["Дата заполнения", b.date]
+  ].filter(function (field) { return field[1]; });
+  el("brief-fields").innerHTML = fields.map(function (field) {
+    return '<div class="brief-field"><dt class="bf-label">' + esc(field[0]) + '</dt><dd class="bf-value">' + esc(String(field[1])) + '</dd></div>';
   }).join("");
 
   el("btn-doc").disabled = !b.docUrl;
-  el("btn-mark-test").textContent = b.status === "Тест" ? "Снять отметку «Тест»" : "Отметить как тест";
+  el("doc-help").textContent = b.docUrl ? "Полные ответы клиента откроются в новой вкладке." : "Google Doc для этой заявки не найден.";
+  const amoButton = el("btn-amo");
+  if (isHttpUrl(b.amoLink)) {
+    amoButton.href = b.amoLink;
+    amoButton.classList.remove("hidden");
+  } else {
+    amoButton.classList.add("hidden");
+    amoButton.removeAttribute("href");
+  }
+  el("btn-mark-test").textContent = b.status === "Тест" ? "Вернуть из тестовых" : "Отметить как тестовую заявку";
 
+  savedPanelState = panelState();
+  updateDirtyState();
   show("overlay");
   el("panel").classList.remove("hidden");
   document.body.classList.add("panel-open");
   el("panel").scrollTop = 0;
+}
+
+function requestClose() {
+  if (!hasUnsavedChanges()) {
+    closePanel();
+    return;
+  }
+  if (window.confirm("Есть несохранённые изменения. Закрыть карточку без сохранения?")) closePanel();
 }
 
 function closePanel() {
@@ -208,36 +217,43 @@ function closePanel() {
   el("panel").classList.add("hidden");
   document.body.classList.remove("panel-open");
   currentId = null;
+  savedPanelState = "";
+  closeAfterConfirm = null;
 }
-
-// ── Actions ───────────────────────────────────────────────────────────────────
 
 async function saveChanges() {
   if (!currentId) return;
+  const amoLink = el("field-amo").value.trim();
+  if (amoLink && !isHttpUrl(amoLink)) {
+    setMessage("save-msg", "Введите полную ссылку, начинающуюся с http:// или https://", true);
+    return;
+  }
 
   const updates = {
-    status: el("field-status").value,
     responsible: el("field-responsible").value.trim(),
-    nextStep: el("field-next-step").value.trim(),
-    comment: el("field-comment").value.trim()
+    amoLink: amoLink
   };
-
   const btn = el("btn-save");
-  const msg = el("save-msg");
   btn.disabled = true;
-  msg.textContent = "Сохраняю...";
-  msg.className = "save-msg";
+  setMessage("save-msg", "Сохраняю…");
 
   try {
     await patchBrief(currentId, updates);
     applyLocal(currentId, updates);
-    msg.textContent = "Сохранено ✓";
-    msg.className = "save-msg msg-ok";
-    renderStats();
+    savedPanelState = panelState();
+    updateDirtyState();
+    setMessage("save-msg", "Сохранено ✓");
     renderList();
+    const amoButton = el("btn-amo");
+    if (isHttpUrl(amoLink)) {
+      amoButton.href = amoLink;
+      amoButton.classList.remove("hidden");
+    } else {
+      amoButton.classList.add("hidden");
+      amoButton.removeAttribute("href");
+    }
   } catch (err) {
-    msg.textContent = err.message;
-    msg.className = "save-msg msg-err";
+    setMessage("save-msg", err.message, true);
   } finally {
     btn.disabled = false;
   }
@@ -245,18 +261,17 @@ async function saveChanges() {
 
 function openDoc() {
   const b = current();
-  if (b && b.docUrl) window.open(b.docUrl, "_blank", "noopener,noreferrer");
+  if (b && isHttpUrl(b.docUrl)) window.open(b.docUrl, "_blank", "noopener,noreferrer");
 }
 
-function copyLink() {
+async function copyGeneralBriefLink() {
   const b = current();
-  if (!b) return;
-  const link = window.location.origin + "/";
-  navigator.clipboard.writeText(link).then(function () {
-    const btn = el("btn-copy-link");
-    btn.textContent = "Скопировано!";
-    setTimeout(function () { btn.textContent = "Скопировать ссылку на форму"; }, 2000);
-  });
+  const briefId = b && BRIEF_TITLE_TO_ID[b.briefTitle];
+  if (!briefId) {
+    setMessage("save-msg", "Не удалось определить тип брифа.", true);
+    return;
+  }
+  await copyText(window.location.origin + "/?brief=" + briefId, el("btn-copy-link"), "Скопировано");
 }
 
 async function toggleTest() {
@@ -265,52 +280,178 @@ async function toggleTest() {
   const newStatus = b.status === "Тест" ? "Новая" : "Тест";
   const btn = el("btn-mark-test");
   btn.disabled = true;
-
+  setMessage("test-msg", "Сохраняю…");
   try {
     await patchBrief(currentId, { status: newStatus });
     applyLocal(currentId, { status: newStatus });
-    el("field-status").value = newStatus;
-    btn.textContent = newStatus === "Тест" ? "Снять отметку «Тест»" : "Отметить как тест";
+    btn.textContent = newStatus === "Тест" ? "Вернуть из тестовых" : "Отметить как тестовую заявку";
+    setMessage("test-msg", "Готово ✓");
     renderStats();
     renderList();
   } catch (err) {
-    // silent — user sees no change
+    setMessage("test-msg", err.message, true);
   } finally {
     btn.disabled = false;
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+function initCreateModal() {
+  el("create-brief").innerHTML = '<option value="">Выберите тип брифа</option>' + BRIEFS.map(function (item) {
+    return '<option value="' + item[0] + '">' + esc(item[1]) + '</option>';
+  }).join("");
+  el("btn-open-create").addEventListener("click", openCreateModal);
+  el("create-close").addEventListener("click", closeCreateModal);
+  el("btn-create-cancel").addEventListener("click", closeCreateModal);
+  el("create-form").addEventListener("submit", createPersonalLink);
+  el("btn-copy-personal").addEventListener("click", function () {
+    copyText(el("personal-link").value, el("btn-copy-personal"), "Ссылка скопирована");
+  });
+  el("btn-copy-general").addEventListener("click", function () {
+    copyText(el("general-link").value, el("btn-copy-general"), "Ссылка скопирована");
+  });
+  el("btn-create-another").addEventListener("click", resetCreateForm);
+}
+
+function openCreateModal() {
+  resetCreateForm();
+  show("overlay");
+  el("create-modal").classList.remove("hidden");
+  document.body.classList.add("panel-open");
+  el("create-brief").focus();
+}
+
+function closeCreateModal() {
+  el("create-modal").classList.add("hidden");
+  if (el("panel").classList.contains("hidden")) {
+    hide("overlay");
+    document.body.classList.remove("panel-open");
+  }
+}
+
+function resetCreateForm() {
+  el("create-form").reset();
+  show("create-form");
+  hide("create-result");
+  hide("create-error");
+  el("create-error").textContent = "";
+  el("btn-create").disabled = false;
+}
+
+async function createPersonalLink(event) {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const payload = {
+    briefId: String(form.get("briefId") || ""),
+    clientName: String(form.get("clientName") || "").trim(),
+    projectName: String(form.get("projectName") || "").trim(),
+    createdBy: String(form.get("createdBy") || "").trim()
+  };
+  if (!payload.briefId || !payload.clientName || !payload.createdBy) return;
+
+  const btn = el("btn-create");
+  btn.disabled = true;
+  btn.textContent = "Создаю…";
+  hide("create-error");
+  try {
+    const res = await fetch("/api/admin/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok || !data.ok) {
+      if (res.status === 401) throw new Error("Сессия доступа закончилась. Обновите страницу и войдите снова.");
+      throw new Error(data.message || "Не удалось создать ссылку.");
+    }
+    el("personal-link").value = data.url;
+    el("general-link").value = window.location.origin + "/?brief=" + payload.briefId;
+    hide("create-form");
+    show("create-result");
+  } catch (err) {
+    el("create-error").textContent = err.message;
+    show("create-error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Создать ссылку";
+  }
+}
+
+async function copyText(text, button, successText) {
+  const original = button.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    button.textContent = successText;
+  } catch {
+    button.textContent = "Выделите и скопируйте ссылку вручную";
+  }
+  setTimeout(function () { button.textContent = original; }, 2200);
+}
+
+function panelState() {
+  return JSON.stringify({
+    responsible: el("field-responsible").value.trim(),
+    amoLink: el("field-amo").value.trim()
+  });
+}
+
+function hasUnsavedChanges() {
+  return Boolean(currentId && savedPanelState && panelState() !== savedPanelState);
+}
+
+function updateDirtyState() {
+  const dirty = hasUnsavedChanges();
+  el("btn-save").textContent = dirty ? "Сохранить изменения" : "Сохранено";
+  el("btn-save").disabled = !dirty;
+}
 
 function applyLocal(submissionId, updates) {
-  const b = briefs.find(function (x) { return x.submissionId === submissionId; });
-  if (!b) return;
-  Object.assign(b, updates);
+  const b = briefs.find(function (item) { return item.submissionId === submissionId; });
+  if (b) Object.assign(b, updates);
 }
 
 function current() {
-  return currentId ? briefs.find(function (x) { return x.submissionId === currentId; }) : null;
+  return currentId ? briefs.find(function (item) { return item.submissionId === currentId; }) : null;
+}
+
+function renderLoadedAt() {
+  if (!loadedAt) return;
+  el("loaded-at").textContent = "Обновлено в " +
+    String(loadedAt.getHours()).padStart(2, "0") + ":" +
+    String(loadedAt.getMinutes()).padStart(2, "0");
+}
+
+function parseDate(value) {
+  const match = String(value || "").match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  if (!match) return 0;
+  return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0)).getTime();
+}
+
+function isHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function setMessage(id, text, isError) {
+  const node = el(id);
+  node.textContent = text || "";
+  node.className = "save-msg" + (isError ? " msg-err" : text ? " msg-ok" : "");
 }
 
 function el(id) { return document.getElementById(id); }
 function show(id) { el(id).classList.remove("hidden"); }
 function hide(id) { el(id).classList.add("hidden"); }
-
-function showError(msg) {
-  const e = el("error");
-  e.textContent = msg;
-  e.classList.remove("hidden");
+function showError(message) {
+  el("error").textContent = message;
+  show("error");
 }
-
-function esc(str) {
-  return String(str || "")
+function esc(value) {
+  return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function shortDate(dateStr) {
-  if (!dateStr) return "";
-  return String(dateStr).split(" ")[0];
 }

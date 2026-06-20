@@ -25,7 +25,11 @@ export async function onRequestPost({ params, request, env }) {
     const response = await fetch(env.APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, apiSecret: env.FORM_API_SECRET }),
+      body: JSON.stringify({
+        ...payload,
+        responsible: session.createdBy || "",
+        apiSecret: env.FORM_API_SECRET
+      }),
       redirect: "follow"
     });
     result = await response.json();

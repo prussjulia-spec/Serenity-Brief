@@ -96,7 +96,7 @@ function saveBrief(payload) {
       safeCell_(payload.request),
       safeCell_(payload.budget),
       "Новая",
-      "",
+      safeCell_(payload.responsible),
       "",
       "",
       "",
@@ -549,7 +549,7 @@ function adminUpdateBrief_(submissionId, updates) {
   const row = match.getRow();
 
   // Allowed fields with their 1-based column numbers (matches HEADERS order)
-  const ALLOWED = { status: 9, responsible: 10, comment: 11, nextStep: 14 };
+  const ALLOWED = { status: 9, responsible: 10, comment: 11, amoLink: 12, nextStep: 14 };
 
   Object.keys(updates).forEach(function (field) {
     const col = ALLOWED[field];
@@ -558,9 +558,6 @@ function adminUpdateBrief_(submissionId, updates) {
     if (field === "status" && APP.STATUSES.indexOf(value) === -1) return;
     sheet.getRange(row, col).setValue(value);
   });
-
-  // Stamp last-touch date whenever anything changes
-  sheet.getRange(row, 13).setValue(new Date());
 
   return { ok: true };
 }

@@ -3,35 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Панель менеджера — Serenity</title>
+  <title>Входящие брифы — Serenity</title>
   <link rel="stylesheet" href="./admin.css">
 </head>
 <body>
-  <div id="app">
-    <header class="header">
-      <span class="header-brand">serenity</span>
-      <span class="header-sep">·</span>
-      <span class="header-title">Заявки</span>
-    </header>
+  <header class="header">
+    <span class="header-brand">serenity</span>
+    <span class="header-sep">·</span>
+    <span class="header-title">Входящие брифы</span>
+  </header>
 
-    <main class="main">
-      <div class="toolbar">
-        <div class="filters" id="filters">
-          <button class="filter active" data-filter="all">Все</button>
-          <button class="filter" data-filter="new">Новые</button>
-          <button class="filter" data-filter="active">В работе</button>
-          <button class="filter" data-filter="closed">Закрытые</button>
-          <button class="filter" data-filter="test">Тестовые</button>
-        </div>
+  <main class="main">
+    <section class="create-card">
+      <div>
+        <h1>Ссылки для клиентов</h1>
+        <p>Персональная ссылка сохраняет черновик клиента и закрепляет заявку за менеджером.</p>
+      </div>
+      <button id="btn-open-create" class="btn-primary">+ Создать персональную ссылку</button>
+    </section>
+
+    <div class="toolbar">
+      <div class="filters" id="filters">
+        <button class="filter active" data-filter="all">Все</button>
+        <button class="filter" data-filter="new">Новые</button>
+      </div>
+      <div class="toolbar-end">
+        <span id="loaded-at" class="loaded-at"></span>
+        <button id="btn-refresh" class="btn-refresh" title="Обновить список" aria-label="Обновить список">↻</button>
         <div class="stats" id="stats"></div>
       </div>
+    </div>
 
-      <div id="loading" class="state-msg">Загрузка...</div>
-      <div id="error" class="state-msg state-error hidden"></div>
-      <div id="empty" class="state-msg hidden">Нет заявок</div>
-      <div id="list" class="list"></div>
-    </main>
-  </div>
+    <div id="loading" class="state-msg">Загрузка заявок…</div>
+    <div id="error" class="state-msg state-error hidden"></div>
+    <div id="empty" class="state-msg hidden">Пока нет входящих брифов</div>
+    <div id="list" class="list"></div>
+  </main>
 
   <div id="overlay" class="overlay hidden"></div>
 
@@ -45,27 +52,27 @@
     </div>
 
     <div class="panel-body">
+      <section class="panel-section action-hero">
+        <button id="btn-doc" class="btn-primary btn-wide">Открыть Google Doc</button>
+        <p id="doc-help" class="field-help"></p>
+        <a id="btn-amo" class="btn-action btn-wide hidden" href="#" target="_blank" rel="noopener noreferrer">Открыть сделку в amoCRM</a>
+      </section>
 
       <section class="panel-section">
-        <h3 class="section-label">Управление</h3>
+        <h3 class="section-label">Данные клиента</h3>
+        <dl id="brief-fields" class="brief-fields"></dl>
+      </section>
 
+      <section class="panel-section">
+        <h3 class="section-label">Для команды</h3>
         <div class="form-row">
-          <label class="form-label" for="field-status">Статус</label>
-          <select id="field-status" class="field-control"></select>
-        </div>
-        <div class="form-row">
-          <label class="form-label" for="field-responsible">Ответственный</label>
+          <label class="form-label" for="field-responsible">Ответственный менеджер</label>
           <input id="field-responsible" type="text" class="field-control" placeholder="Имя менеджера">
         </div>
         <div class="form-row">
-          <label class="form-label" for="field-next-step">Следующий шаг</label>
-          <input id="field-next-step" type="text" class="field-control" placeholder="Что сделать следующим">
+          <label class="form-label" for="field-amo">Ссылка на сделку в amoCRM</label>
+          <input id="field-amo" type="url" class="field-control" placeholder="https://...">
         </div>
-        <div class="form-row">
-          <label class="form-label" for="field-comment">Комментарий</label>
-          <textarea id="field-comment" class="field-control field-textarea" rows="3" placeholder="Внутренние заметки"></textarea>
-        </div>
-
         <div class="form-actions">
           <button id="btn-save" class="btn-primary">Сохранить</button>
           <span id="save-msg" class="save-msg"></span>
@@ -73,21 +80,69 @@
       </section>
 
       <section class="panel-section">
-        <h3 class="section-label">Данные заявки</h3>
-        <dl id="brief-fields" class="brief-fields"></dl>
+        <h3 class="section-label">Ссылка на тип брифа</h3>
+        <button id="btn-copy-link" class="btn-action">Скопировать общую ссылку на этот тип брифа</button>
+        <p class="field-help">Это не персональная ссылка: она только открывает пустую форму выбранного типа.</p>
       </section>
 
       <section class="panel-section">
-        <h3 class="section-label">Действия</h3>
-        <div class="action-btns">
-          <button id="btn-doc" class="btn-action">Открыть Google Doc</button>
-          <button id="btn-copy-link" class="btn-action">Скопировать ссылку на форму</button>
-          <button id="btn-mark-test" class="btn-action btn-action-danger">Отметить как тест</button>
-        </div>
+        <button id="btn-mark-test" class="btn-text-danger">Отметить как тестовую заявку</button>
+        <span id="test-msg" class="save-msg"></span>
       </section>
-
     </div>
   </aside>
+
+  <section id="create-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="create-title">
+    <div class="modal-header">
+      <div>
+        <h2 id="create-title">Создать персональную ссылку</h2>
+        <p>Черновик будет храниться по уникальной ссылке <code>?session=…</code>.</p>
+      </div>
+      <button id="create-close" class="panel-close" aria-label="Закрыть">&#x2715;</button>
+    </div>
+
+    <form id="create-form" class="modal-body">
+      <div class="form-row">
+        <label class="form-label" for="create-brief">Тип брифа</label>
+        <select id="create-brief" name="briefId" class="field-control" required></select>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="create-client">Компания / клиент</label>
+        <input id="create-client" name="clientName" class="field-control" required>
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="create-project">Проект или задача <span class="optional">необязательно</span></label>
+        <input id="create-project" name="projectName" class="field-control">
+      </div>
+      <div class="form-row">
+        <label class="form-label" for="create-manager">Ответственный менеджер</label>
+        <input id="create-manager" name="createdBy" class="field-control" required>
+        <p class="field-help">Это имя автоматически появится у заявки после заполнения брифа.</p>
+      </div>
+      <div id="create-error" class="inline-error hidden"></div>
+      <div class="form-actions">
+        <button id="btn-create" class="btn-primary" type="submit">Создать ссылку</button>
+        <button id="btn-create-cancel" class="btn-secondary" type="button">Отмена</button>
+      </div>
+    </form>
+
+    <div id="create-result" class="modal-body hidden">
+      <div class="link-result">
+        <strong>Персональная ссылка клиенту</strong>
+        <p>Сохраняет черновик и закрепляет заявку за указанным менеджером.</p>
+        <input id="personal-link" class="field-control link-field" readonly>
+        <button id="btn-copy-personal" class="btn-primary btn-wide" type="button">Скопировать ссылку</button>
+      </div>
+      <div class="link-divider"></div>
+      <div class="general-link-block">
+        <strong>Общая ссылка на тип брифа</strong>
+        <p>Не персональная: открывает пустую форму без серверного черновика.</p>
+        <input id="general-link" class="field-control link-field" readonly>
+        <button id="btn-copy-general" class="btn-secondary btn-wide" type="button">Скопировать общую ссылку</button>
+      </div>
+      <button id="btn-create-another" class="btn-text" type="button">Создать ещё одну ссылку</button>
+    </div>
+  </section>
 
   <script src="./admin.js"></script>
 </body>
