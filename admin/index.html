@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Панель менеджера — Serenity</title>
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <span class="header-brand">serenity</span>
+      <span class="header-sep">·</span>
+      <span class="header-title">Заявки</span>
+    </header>
+
+    <main class="main">
+      <div class="toolbar">
+        <div class="filters" id="filters">
+          <button class="filter active" data-filter="all">Все</button>
+          <button class="filter" data-filter="new">Новые</button>
+          <button class="filter" data-filter="active">В работе</button>
+          <button class="filter" data-filter="closed">Закрытые</button>
+          <button class="filter" data-filter="test">Тестовые</button>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div id="loading" class="state-msg">Загрузка...</div>
+      <div id="error" class="state-msg state-error hidden"></div>
+      <div id="empty" class="state-msg hidden">Нет заявок</div>
+      <div id="list" class="list"></div>
+    </main>
+  </div>
+
+  <div id="overlay" class="overlay hidden"></div>
+
+  <aside id="panel" class="panel hidden" aria-label="Детали заявки">
+    <div class="panel-header">
+      <button id="panel-close" class="panel-close" aria-label="Закрыть">&#x2715;</button>
+      <div>
+        <div id="panel-title" class="panel-title"></div>
+        <div id="panel-meta" class="panel-meta"></div>
+      </div>
+    </div>
+
+    <div class="panel-body">
+
+      <section class="panel-section">
+        <h3 class="section-label">Управление</h3>
+
+        <div class="form-row">
+          <label class="form-label" for="field-status">Статус</label>
+          <select id="field-status" class="field-control"></select>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="field-responsible">Ответственный</label>
+          <input id="field-responsible" type="text" class="field-control" placeholder="Имя менеджера">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="field-next-step">Следующий шаг</label>
+          <input id="field-next-step" type="text" class="field-control" placeholder="Что сделать следующим">
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="field-comment">Комментарий</label>
+          <textarea id="field-comment" class="field-control field-textarea" rows="3" placeholder="Внутренние заметки"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-save" class="btn-primary">Сохранить</button>
+          <span id="save-msg" class="save-msg"></span>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="section-label">Данные заявки</h3>
+        <dl id="brief-fields" class="brief-fields"></dl>
+      </section>
+
+      <section class="panel-section">
+        <h3 class="section-label">Действия</h3>
+        <div class="action-btns">
+          <button id="btn-doc" class="btn-action">Открыть Google Doc</button>
+          <button id="btn-copy-link" class="btn-action">Скопировать ссылку на форму</button>
+          <button id="btn-mark-test" class="btn-action btn-action-danger">Отметить как тест</button>
+        </div>
+      </section>
+
+    </div>
+  </aside>
+
+  <script src="./admin.js"></script>
+</body>
+</html>

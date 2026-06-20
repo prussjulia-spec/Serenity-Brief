@@ -6,7 +6,7 @@ const APP = {
   PRIMARY_BUDGET_OPTIONS: ["Пока не понимаю", "До 100 000 ₽", "100 000–300 000 ₽", "300 000–700 000 ₽", "700 000 ₽+", "Хочу обсудить"],
   PERFORMANCE_BUDGET_OPTIONS: ["Пока не знаем", "До 300 000 ₽", "300 000–700 000 ₽", "700 000–1 500 000 ₽", "1 500 000 ₽+", "Хочу обсудить"],
   CONTACT_METHODS: ["Telegram", "Телефон", "Email", "WhatsApp", "Другое"],
-  STATUSES: ["Новая", "Взята в работу", "Уточняем", "Передано специалисту", "КП готовится", "КП отправлено", "Встреча назначена", "Не целевой", "Закрыто"],
+  STATUSES: ["Новая", "Взята в работу", "Уточняем", "Передано специалисту", "КП готовится", "КП отправлено", "Встреча назначена", "Не целевой", "Закрыто", "Тест"],
   CLIENT_BRIEFS_FOLDER_ID: "1jQOtrhreUuquWiI1BI8-G19vK5X9g8FA",
   REQUIRED_PROPERTIES: ["RESPONSES_FOLDER_ID", "REGISTRY_SPREADSHEET_ID", "FORM_API_SECRET"]
 };
@@ -56,6 +56,8 @@ function doPost(event) {
     if (!payload.apiSecret || payload.apiSecret !== expectedSecret) {
       return jsonResponse_({ ok: false, message: "Запрос отклонён." });
     }
+    if (payload.action === "adminGet") return jsonResponse_(adminGetBriefs_());
+    if (payload.action === "adminUpdate") return jsonResponse_(adminUpdateBrief_(payload.submissionId, payload.updates));
     delete payload.apiSecret;
     return jsonResponse_(saveBrief(payload));
   } catch (error) {
@@ -489,4 +491,76 @@ function moveFileToFolder_(fileId) {
 function safeCell_(value) {
   const text = String(value || "");
   return /^[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
+// ── Admin API ─────────────────────────────────────────────────────────────────
+// Called via doPost with action="adminGet" / action="adminUpdate".
+// Auth is handled upstream (FORM_API_SECRET checked in doPost).
+
+function adminGetBriefs_() {
+  const sheet = getRegistrySheet_();
+  if (sheet.getLastRow() < 2) return { ok: true, briefs: [] };
+
+  const tz = Session.getScriptTimeZone();
+  const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, HEADERS.length).getValues();
+
+  const briefs = rows
+    .filter(function (row) { return String(row[0] || "").trim(); })
+    .map(function (row) {
+      return {
+        submissionId:  String(row[0]  || ""),
+        date:          row[1]  ? Utilities.formatDate(new Date(row[1]),  tz, "dd.MM.yyyy HH:mm") : "",
+        company:       String(row[2]  || ""),
+        name:          String(row[3]  || ""),
+        contact:       String(row[4]  || ""),
+        messenger:     String(row[5]  || ""),
+        request:       String(row[6]  || ""),
+        budget:        String(row[7]  || ""),
+        status:        String(row[8]  || "Новая"),
+        responsible:   String(row[9]  || ""),
+        comment:       String(row[10] || ""),
+        amoLink:       String(row[11] || ""),
+        lastTouch:     row[12] ? Utilities.formatDate(new Date(row[12]), tz, "dd.MM.yyyy") : "",
+        nextStep:      String(row[13] || ""),
+        briefTitle:    String(row[14] || ""),
+        docUrl:        String(row[15] || ""),
+      };
+    });
+
+  return { ok: true, briefs: briefs };
+}
+
+function adminUpdateBrief_(submissionId, updates) {
+  if (!submissionId || typeof updates !== "object") {
+    return { ok: false, message: "Некорректные данные." };
+  }
+
+  const sheet = getRegistrySheet_();
+  if (sheet.getLastRow() < 2) return { ok: false, message: "Заявка не найдена." };
+
+  const match = sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, 1)
+    .createTextFinder(String(submissionId))
+    .matchEntireCell(true)
+    .findNext();
+
+  if (!match) return { ok: false, message: "Заявка не найдена." };
+
+  const row = match.getRow();
+
+  // Allowed fields with their 1-based column numbers (matches HEADERS order)
+  const ALLOWED = { status: 9, responsible: 10, comment: 11, nextStep: 14 };
+
+  Object.keys(updates).forEach(function (field) {
+    const col = ALLOWED[field];
+    if (!col) return;
+    const value = String(updates[field] || "").slice(0, 2000);
+    if (field === "status" && APP.STATUSES.indexOf(value) === -1) return;
+    sheet.getRange(row, col).setValue(value);
+  });
+
+  // Stamp last-touch date whenever anything changes
+  sheet.getRange(row, 13).setValue(new Date());
+
+  return { ok: true };
 }
