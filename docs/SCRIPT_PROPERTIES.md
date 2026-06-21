@@ -46,8 +46,10 @@
 | --- | --- |
 | `APPS_SCRIPT_URL` | URL опубликованного Apps Script Web app |
 | `FORM_API_SECRET` | та же случайная строка, что и в Script Properties |
+| `ADMIN_USERS_JSON` | JSON-словарь рабочих email и имён менеджеров, например `{"anna@serenity.agency":"Анна"}` |
 
 `FORM_API_SECRET` не попадает в браузер: Pages Function добавляет его только при серверной отправке заявки в Apps Script.
+`ADMIN_USERS_JSON` используется только серверными admin-функциями. Email должен совпадать с email пользователя в Cloudflare Access.
 
 ## Проверка
 

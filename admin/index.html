@@ -11,6 +11,7 @@
     <span class="header-brand">serenity</span>
     <span class="header-sep">·</span>
     <span class="header-title">Входящие брифы</span>
+    <span id="current-user" class="current-user">Проверяем доступ…</span>
   </header>
 
   <main class="main">
@@ -114,11 +115,7 @@
         <label class="form-label" for="create-project">Проект или задача <span class="optional">необязательно</span></label>
         <input id="create-project" name="projectName" class="field-control">
       </div>
-      <div class="form-row">
-        <label class="form-label" for="create-manager">Ответственный менеджер</label>
-        <input id="create-manager" name="createdBy" class="field-control" required>
-        <p class="field-help">Это имя автоматически появится у заявки после заполнения брифа.</p>
-      </div>
+      <p id="create-manager-note" class="manager-note"></p>
       <div id="create-error" class="inline-error hidden"></div>
       <div class="form-actions">
         <button id="btn-create" class="btn-primary" type="submit">Создать ссылку</button>

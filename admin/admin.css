@@ -41,6 +41,12 @@ button { cursor: pointer; }
 .header-brand { font-weight: 800; letter-spacing: -.4px; }
 .header-sep { color: var(--border); }
 .header-title { color: var(--muted); font-size: 13px; }
+.current-user {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+.current-user.user-error { color: var(--danger); }
 
 .main {
   width: min(900px, 100%);
@@ -209,6 +215,14 @@ button { cursor: pointer; }
 .field-control:focus { border-color: var(--accent); }
 .field-control[readonly] { color: #c9c4e8; }
 .field-help { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.manager-note {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 7px;
+  background: rgba(118,85,255,.1);
+  color: #c9c4e8;
+  font-size: 12px;
+}
 
 .form-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
 .save-msg { color: var(--muted); font-size: 12px; }
@@ -274,6 +288,8 @@ button { cursor: pointer; }
 body.panel-open { overflow: hidden; }
 
 @media (max-width: 650px) {
+  .header { flex-wrap: wrap; height: auto; min-height: 52px; padding-top: 10px; padding-bottom: 10px; }
+  .current-user { width: 100%; margin-left: 0; }
   .main { padding: 16px 14px 48px; }
   .create-card { align-items: stretch; flex-direction: column; gap: 14px; }
   .toolbar-end { width: 100%; margin-left: 0; }

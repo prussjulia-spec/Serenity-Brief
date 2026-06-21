@@ -21,6 +21,7 @@ let currentId = null;
 let loadedAt = null;
 let savedPanelState = "";
 let closeAfterConfirm = null;
+let currentUser = null;
 
 document.addEventListener("DOMContentLoaded", function () {
   initFilters();
@@ -32,8 +33,30 @@ document.addEventListener("DOMContentLoaded", function () {
     event.preventDefault();
     event.returnValue = "";
   });
+  loadCurrentUser();
   loadBriefs();
 });
+
+async function loadCurrentUser() {
+  const button = el("btn-open-create");
+  button.disabled = true;
+  try {
+    const res = await fetch("/api/admin/me");
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok || !data.ok) throw new Error(data.message || "Не удалось определить пользователя.");
+    currentUser = { name: data.name, email: data.email };
+    el("current-user").textContent = "Вы вошли как: " + data.name + " · " + data.email;
+    el("current-user").classList.remove("user-error");
+    el("create-manager-note").textContent = "Ответственный: " + data.name + " · " + data.email;
+    button.disabled = false;
+  } catch (err) {
+    currentUser = null;
+    el("current-user").textContent = err.message;
+    el("current-user").classList.add("user-error");
+    el("create-manager-note").textContent = "";
+    button.disabled = true;
+  }
+}
 
 async function loadBriefs() {
   show("loading");
@@ -313,6 +336,7 @@ function initCreateModal() {
 }
 
 function openCreateModal() {
+  if (!currentUser) return;
   resetCreateForm();
   show("overlay");
   el("create-modal").classList.remove("hidden");
@@ -343,10 +367,9 @@ async function createPersonalLink(event) {
   const payload = {
     briefId: String(form.get("briefId") || ""),
     clientName: String(form.get("clientName") || "").trim(),
-    projectName: String(form.get("projectName") || "").trim(),
-    createdBy: String(form.get("createdBy") || "").trim()
+    projectName: String(form.get("projectName") || "").trim()
   };
-  if (!payload.briefId || !payload.clientName || !payload.createdBy) return;
+  if (!payload.briefId || !payload.clientName) return;
 
   const btn = el("btn-create");
   btn.disabled = true;
