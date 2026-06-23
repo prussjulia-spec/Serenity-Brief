@@ -406,25 +406,67 @@ function notifyNewSubmission_(payload, documentUrl, registryUrl) {
   const provider = String(properties.getProperty("NOTIFICATION_PROVIDER") || "").toLowerCase();
   if (!provider) return;
 
-  const text = [
-    "Новая заявка с брифа Serenity",
-    `Компания: ${payload.companyName}`,
-    `Контакт: ${payload.contactName} · ${payload.contactValue || payload.contactEmail}${payload.contactPhone ? " · " + payload.contactPhone : ""}`,
-    payload.contactMethod ? `Связаться через: ${payload.contactMethod}` : (payload.contactSocial ? `Мессенджер: ${payload.contactSocial}` : ""),
-    payload.request ? `Задача: ${payload.request.slice(0, 500)}` : "",
-    payload.budget ? `Бюджет: ${payload.budget}` : "",
-    `Бриф: ${payload.briefTitle}`,
-    `Документ: ${documentUrl}`,
-    `Реестр: ${registryUrl}`
+  const fallbackText = [
+    `Новый бриф: ${payload.briefTitle} — ${payload.companyName}`,
+    payload.responsible ? `Ответственный: ${payload.responsible}` : "",
+    `Контакт: ${payload.contactName}`,
+    `Документ: ${documentUrl}`
   ].filter(Boolean).join("\n");
 
   if (provider === "slack") {
     const webhook = properties.getProperty("SLACK_WEBHOOK_URL");
     if (!webhook) throw new Error("Не задан SLACK_WEBHOOK_URL.");
+
+    const contactMethod = payload.contactMethod || payload.contactSocial || "";
+    const contactValue  = payload.contactValue  || payload.contactEmail  || "";
+    const connectionLine = contactMethod && contactValue
+      ? `${contactMethod}: ${contactValue}`
+      : contactValue || contactMethod || "";
+    const taskText = payload.request ? payload.request.slice(0, 400) + (payload.request.length > 400 ? "…" : "") : "";
+    const folderUrl = `https://drive.google.com/drive/folders/${APP.CLIENT_BRIEFS_FOLDER_ID}`;
+
+    const fields = [
+      { type: "mrkdwn", text: `*Компания*\n${payload.companyName || "—"}` },
+      { type: "mrkdwn", text: `*Ответственный*\n${payload.responsible || "—"}` },
+      { type: "mrkdwn", text: `*Контакт*\n${payload.contactName || "—"}` }
+    ];
+    if (connectionLine) fields.push({ type: "mrkdwn", text: `*Связь*\n${connectionLine}` });
+
+    const blocks = [
+      {
+        type: "header",
+        text: { type: "plain_text", text: `Новый бриф: ${payload.briefTitle}`, emoji: false }
+      },
+      { type: "section", fields: fields },
+      { type: "divider" }
+    ];
+
+    if (taskText) {
+      blocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: `*Задача клиента*\n${taskText}` }
+      });
+    }
+
+    const actionElements = [];
+    if (documentUrl) {
+      actionElements.push({
+        type: "button",
+        text: { type: "plain_text", text: "Открыть Google Doc", emoji: false },
+        url: documentUrl
+      });
+    }
+    actionElements.push({
+      type: "button",
+      text: { type: "plain_text", text: "Папка с брифами", emoji: false },
+      url: folderUrl
+    });
+    blocks.push({ type: "actions", elements: actionElements });
+
     UrlFetchApp.fetch(webhook, {
       method: "post",
       contentType: "application/json",
-      payload: JSON.stringify({ text: text })
+      payload: JSON.stringify({ text: fallbackText, blocks: blocks })
     });
     return;
   }
@@ -435,22 +477,25 @@ function notifyNewSubmission_(payload, documentUrl, registryUrl) {
     if (!token || !chatId) throw new Error("Не заданы Telegram-настройки.");
     UrlFetchApp.fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "post",
-      payload: { chat_id: chatId, text: text, disable_web_page_preview: true }
+      payload: { chat_id: chatId, text: fallbackText, disable_web_page_preview: true }
     });
   }
 }
 
 function testNotification() {
   notifyNewSubmission_({
-    companyName: "Тест Serenity",
-    contactName: "Тестовый клиент",
-    contactEmail: "test@example.com",
+    companyName: "ООО «Эко-Сервис»",
+    contactName: "Иван Петров",
+    contactMethod: "Telegram",
+    contactValue: "@ivanp_eco",
+    contactEmail: "",
     contactPhone: "",
     contactSocial: "",
-    request: "Проверка уведомления о новой заявке",
-    budget: "",
-    briefTitle: "Первичный бриф"
-  }, "https://docs.google.com/", SpreadsheetApp.openById(getProperty_("REGISTRY_SPREADSHEET_ID")).getUrl());
+    responsible: "Анна",
+    request: "Хотим запустить рекламу в VK и Яндекс.Директе. Целевая аудитория — B2B-компании в сфере экологического консалтинга. Цель — 200 квалифицированных лидов в месяц при CPL не выше 3 000 ₽. Сейчас есть сайт, базовая аналитика настроена.",
+    budget: "700 000–1 500 000 ₽",
+    briefTitle: "Performance-реклама"
+  }, "https://docs.google.com/document/d/example", SpreadsheetApp.openById(getProperty_("REGISTRY_SPREADSHEET_ID")).getUrl());
 }
 
 function checkConfiguration() {
