@@ -19,7 +19,6 @@ export async function onRequestPost({ request, env }) {
 
   const briefId = String(body.briefId || "").trim();
   const clientName = String(body.clientName || "").trim();
-  const projectName = String(body.projectName || "").trim();
 
   if (!briefId || !clientName) {
     return json({ ok: false, message: "Укажите тип брифа и клиента." }, 400);
@@ -32,7 +31,6 @@ export async function onRequestPost({ request, env }) {
     token,
     briefId: briefId.slice(0, 100),
     clientName: clientName.slice(0, 500),
-    projectName: projectName.slice(0, 1000),
     createdBy: user.name.slice(0, 200),
     createdByEmail: user.email.slice(0, 320),
     status: "draft",

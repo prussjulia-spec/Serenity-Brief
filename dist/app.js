@@ -494,17 +494,33 @@ const state = {
   sending: false,
   submission: null,
   error: "",
-  formStartedAt: Date.now()
+  formStartedAt: Date.now(),
+  sessionUpdatedAt: null,
+  sessionStatus: "draft",
+  sessionClientName: "",
+  sessionError: "",
+  createResult: null,
+  createError: "",
+  createSending: false,
+  createManagerName: ""
 };
 
 const app = document.querySelector("#app");
 const saveStatus = document.querySelector("#save-status");
 const requestedBriefId = new URLSearchParams(window.location.search).get("brief");
+const sessionToken = new URLSearchParams(window.location.search).get("session");
+const adminParam = new URLSearchParams(window.location.search).get("admin");
 
-if (briefTypes.some((item) => item.id === requestedBriefId)) {
+if (!sessionToken && !adminParam && briefTypes.some((item) => item.id === requestedBriefId)) {
   state.briefId = requestedBriefId;
   state.screen = "brief";
 }
+
+if (adminParam && !sessionToken) {
+  state.screen = "create";
+}
+
+let sessionSaveTimer = null;
 
 function field(id, label, type = "text", help = "", required = false) {
   return { id, label, type, help, required };
@@ -547,7 +563,10 @@ function getBriefIntro(briefItem) {
 }
 
 function render() {
-  saveStatus.hidden = state.screen === "home";
+  saveStatus.hidden = ["home", "loading", "session_error", "create"].includes(state.screen);
+  if (state.screen === "loading") return renderSessionLoading();
+  if (state.screen === "session_error") return renderSessionError();
+  if (state.screen === "create") return renderCreate();
   if (state.screen === "brief") return renderBrief();
   if (state.screen === "result") return renderResult();
   renderHome();
@@ -586,7 +605,7 @@ function renderBrief() {
   app.innerHTML = `
     <div class="brief-shell">
       <aside class="brief-aside">
-        <button class="back-link" type="button" data-action="home">← Все брифы</button>
+        ${sessionToken ? "" : `<button class="back-link" type="button" data-action="home">← Все брифы</button>`}
         <h2>${current.title}</h2>
         <p>${getBriefIntro(current)}</p>
         <span class="aside-time">${formatCompactTime(current.time)}</span>
@@ -693,7 +712,7 @@ function renderResult() {
             <p class="result-copy">Ответы сохранились у команды Serenity. Мы изучим задачу и вернёмся к вам по указанному контакту.</p>
           </div>
           <div class="result-actions">
-            <button class="button secondary" type="button" data-action="edit">Вернуться к ответам</button>
+            ${!(sessionToken && state.sessionStatus === "submitted") ? `<button class="button secondary" type="button" data-action="edit">Вернуться к ответам</button>` : ""}
             <button class="button" type="button" data-action="copy">Скопировать ответы</button>
           </div>
         </div>
@@ -751,9 +770,13 @@ function saveAnswers() {
     }
   }
   state.answers[state.briefId] = data;
-  const saved = writeStorage("serenityBriefAnswers", state.answers);
   updateProgress();
-  setSaveStatus(saved ? "Черновик сохранён" : "Черновик только в этой вкладке", saved ? "" : "error");
+  if (sessionToken) {
+    scheduleSessionSave();
+  } else {
+    const saved = writeStorage("serenityBriefAnswers", state.answers);
+    setSaveStatus(saved ? "Черновик сохранён" : "Черновик только в этой вкладке", saved ? "" : "error");
+  }
 }
 
 function getRequiredProgress() {
@@ -875,7 +898,10 @@ async function submitBrief() {
     });
   }
 
-  const response = await fetch(publicConfig.submissionEndpoint, {
+  const endpoint = sessionToken
+    ? `/api/session/${sessionToken}/submit`
+    : publicConfig.submissionEndpoint;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
@@ -884,6 +910,7 @@ async function submitBrief() {
   if (!response.ok || !result?.ok) {
     throw new Error(result?.message || "Не удалось отправить бриф. Попробуйте ещё раз.");
   }
+  if (sessionToken) state.sessionStatus = "submitted";
   return result;
 }
 
@@ -955,6 +982,15 @@ document.addEventListener("click", async (event) => {
       actionButton.textContent = "Скопировать ответы";
     }, 1800);
   }
+  if (action === "copy-link" && state.createResult?.url) {
+    try {
+      await navigator.clipboard.writeText(state.createResult.url);
+      actionButton.textContent = "Скопировано";
+    } catch {
+      actionButton.textContent = "Не удалось скопировать";
+    }
+    setTimeout(() => { actionButton.textContent = "Скопировать"; }, 1800);
+  }
 });
 
 document.addEventListener("input", (event) => {
@@ -964,6 +1000,40 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
+  if (event.target.id === "create-form") {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const createdBy = formData.get("createdBy") || "";
+    state.createManagerName = createdBy;
+    state.createSending = true;
+    state.createError = "";
+    render();
+    try {
+      const response = await fetch("/api/session/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminSecret: adminParam,
+          briefId: formData.get("briefId"),
+          clientName: formData.get("clientName"),
+          createdBy
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      state.createSending = false;
+      if (result?.ok) {
+        state.createResult = result;
+        state.createError = "";
+      } else {
+        state.createError = result?.message || "Не удалось создать ссылку.";
+      }
+    } catch {
+      state.createSending = false;
+      state.createError = "Не удалось создать ссылку. Проверьте соединение.";
+    }
+    render();
+    return;
+  }
   if (event.target.id !== "brief-form") return;
   event.preventDefault();
   saveAnswers();
@@ -1013,4 +1083,171 @@ function updateUrl(briefId = "") {
   window.history.replaceState({}, "", url);
 }
 
-render();
+async function loadSession() {
+  state.screen = "loading";
+  render();
+  let data = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(`/api/session/${sessionToken}`);
+      if (response.status === 404) {
+        state.screen = "session_error";
+        state.sessionError = "Ссылка недействительна или устарела. Обратитесь к менеджеру Serenity.";
+        render();
+        return;
+      }
+      data = await response.json().catch(() => null);
+      if (data) break;
+    } catch {
+      if (attempt === 2) {
+        state.screen = "session_error";
+        state.sessionError = "Не удалось загрузить бриф. Проверьте соединение и обновите страницу.";
+        render();
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
+  }
+  if (!data?.ok) {
+    state.screen = "session_error";
+    state.sessionError = data?.message || "Не удалось загрузить бриф.";
+    render();
+    return;
+  }
+  state.briefId = data.briefId;
+  state.answers = data.answers || {};
+  state.sessionUpdatedAt = data.updatedAt;
+  state.sessionStatus = data.status;
+  state.sessionClientName = data.clientName || "";
+  state.screen = data.status === "submitted" ? "result" : "brief";
+  render();
+}
+
+function scheduleSessionSave() {
+  setSaveStatus("Сохранение…", "sending");
+  clearTimeout(sessionSaveTimer);
+  sessionSaveTimer = setTimeout(doSessionSave, 2000);
+}
+
+async function doSessionSave() {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(`/api/session/${sessionToken}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: state.answers, clientUpdatedAt: state.sessionUpdatedAt })
+      });
+      if (response.status === 409) {
+        setSaveStatus("Данные обновились в другой вкладке. Обновите страницу.", "error");
+        return;
+      }
+      if (response.status === 423) {
+        setSaveStatus("Бриф уже отправлен.", "error");
+        return;
+      }
+      if (response.ok) {
+        const result = await response.json().catch(() => ({}));
+        state.sessionUpdatedAt = result.updatedAt || state.sessionUpdatedAt;
+        const time = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+        setSaveStatus(`Сохранено облачно · ${time}`);
+        return;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    } catch {
+      if (attempt === 2) {
+        setSaveStatus("Не удалось сохранить — проверьте соединение", "error");
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+function renderSessionLoading() {
+  app.innerHTML = `
+    <section class="result">
+      <div class="result-card">
+        <div class="result-head">
+          <div><h1>Загружаем бриф…</h1></div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderSessionError() {
+  app.innerHTML = `
+    <section class="result">
+      <div class="result-card">
+        <div class="result-head">
+          <div>
+            <h1>Ссылка недействительна</h1>
+            <p class="result-copy">${escapeHtml(state.sessionError || "Эта ссылка устарела или не существует. Обратитесь к менеджеру Serenity.")}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderCreate() {
+  const briefOptions = briefTypes
+    .map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.title)}</option>`)
+    .join("");
+  app.innerHTML = `
+    <section class="result">
+      <div class="result-card">
+        <div class="result-head">
+          <div>
+            <span class="tag">Менеджер</span>
+            <h1>Создать ссылку на бриф</h1>
+          </div>
+        </div>
+        ${state.createResult ? `
+          <div style="margin:1.5rem 0;padding:1rem 1.25rem;background:var(--surface-alt,#f5f5f5);border-radius:8px">
+            <p style="margin:0 0 .5rem;font-size:.875rem;opacity:.7">Ссылка создана</p>
+            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+              <code style="flex:1;word-break:break-all;font-size:.875rem">${escapeHtml(state.createResult.url)}</code>
+              <button class="button" type="button" data-action="copy-link">Скопировать</button>
+            </div>
+          </div>
+        ` : ""}
+        <form id="create-form">
+          <div class="fields">
+            <div class="field">
+              <label for="create-brief">Тип брифа</label>
+              <select id="create-brief" name="briefId" required style="width:100%;padding:.5rem .75rem;font-size:1rem;border:1px solid currentColor;border-radius:6px;opacity:.8">
+                <option value="">Выберите бриф</option>
+                ${briefOptions}
+              </select>
+            </div>
+            <div class="field">
+              <label for="create-client">Компания / клиент <span class="required">*</span></label>
+              <input id="create-client" type="text" name="clientName" required>
+            </div>
+            <div class="field">
+              <label for="create-manager">Создал</label>
+              <input id="create-manager" type="text" name="createdBy" value="${escapeHtml(state.createManagerName)}">
+            </div>
+          </div>
+          ${state.createError ? `<p class="form-error" role="alert">${escapeHtml(state.createError)}</p>` : ""}
+          <div class="form-actions">
+            <button class="button" type="submit"${state.createSending ? " disabled" : ""}>
+              ${state.createSending ? "Создаём…" : "Создать ссылку →"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  `;
+}
+
+async function init() {
+  if (sessionToken) {
+    await loadSession();
+  } else {
+    render();
+  }
+}
+
+init();

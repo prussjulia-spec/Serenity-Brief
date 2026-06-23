@@ -14,7 +14,6 @@ export async function onRequestGet({ params, env }) {
     ok: true,
     briefId: session.briefId,
     clientName: session.clientName,
-    projectName: session.projectName || "",
     answers: session.answers || {},
     status: session.status,
     updatedAt: session.updatedAt

@@ -498,7 +498,6 @@ const state = {
   sessionUpdatedAt: null,
   sessionStatus: "draft",
   sessionClientName: "",
-  sessionProjectName: "",
   sessionError: "",
   createResult: null,
   createError: "",
@@ -1017,7 +1016,6 @@ document.addEventListener("submit", async (event) => {
           adminSecret: adminParam,
           briefId: formData.get("briefId"),
           clientName: formData.get("clientName"),
-          projectName: formData.get("projectName") || "",
           createdBy
         })
       });
@@ -1121,7 +1119,6 @@ async function loadSession() {
   state.sessionUpdatedAt = data.updatedAt;
   state.sessionStatus = data.status;
   state.sessionClientName = data.clientName || "";
-  state.sessionProjectName = data.projectName || "";
   state.screen = data.status === "submitted" ? "result" : "brief";
   render();
 }
@@ -1227,10 +1224,6 @@ function renderCreate() {
             <div class="field">
               <label for="create-client">Компания / клиент <span class="required">*</span></label>
               <input id="create-client" type="text" name="clientName" required>
-            </div>
-            <div class="field">
-              <label for="create-project">Проект или задача</label>
-              <input id="create-project" type="text" name="projectName">
             </div>
             <div class="field">
               <label for="create-manager">Создал</label>

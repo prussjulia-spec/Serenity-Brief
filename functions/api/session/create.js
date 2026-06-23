@@ -16,7 +16,6 @@ export async function onRequestPost({ request, env }) {
 
   const briefId = (body.briefId || "").trim();
   const clientName = (body.clientName || "").trim();
-  const projectName = (body.projectName || "").trim();
   const createdBy = (body.createdBy || "").trim();
 
   if (!briefId || !clientName) {
@@ -31,7 +30,6 @@ export async function onRequestPost({ request, env }) {
     token,
     briefId,
     clientName,
-    projectName,
     createdBy,
     status: "draft",
     answers: {},
