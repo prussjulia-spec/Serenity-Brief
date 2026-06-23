@@ -105,6 +105,7 @@ function getFiltered() {
   return briefs.filter(function (b) {
     if (currentFilter === "new") { if (b.status !== "Новая") return false; }
     else if (currentFilter === "mine") { if (!currentUser || b.responsible !== currentUser.name) return false; }
+    else if (currentFilter === "test") { if (b.status !== "Тест") return false; }
     else { if (b.status === "Тест") return false; }
 
     if (!q) return true;
@@ -168,6 +169,7 @@ function emptyMessage() {
   if (q) return "Ничего не найдено по запросу «" + q + "»";
   if (currentFilter === "mine") return "У вас пока нет заявок. Создайте персональную ссылку — она закрепит бриф за вами.";
   if (currentFilter === "new") return "Новых заявок нет";
+  if (currentFilter === "test") return "Тестовых заявок нет";
   return "Пока нет входящих брифов";
 }
 
