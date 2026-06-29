@@ -24,6 +24,9 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, message: "Укажите тип брифа и клиента." }, 400);
   }
 
+  const amoUrl = String(body.amoUrl || "").trim();
+  const amoDealId = extractAmoDealId(amoUrl);
+
   const token = crypto.randomUUID();
   const now = new Date().toISOString();
   const session = {
@@ -33,6 +36,8 @@ export async function onRequestPost({ request, env }) {
     clientName: clientName.slice(0, 500),
     createdBy: user.name.slice(0, 200),
     createdByEmail: user.email.slice(0, 320),
+    amoUrl: amoUrl.slice(0, 500) || null,
+    amoDealId: amoDealId || null,
     status: "draft",
     answers: {},
     submissionId: null,
@@ -46,6 +51,11 @@ export async function onRequestPost({ request, env }) {
 
   const origin = new URL(request.url).origin;
   return json({ ok: true, token, url: `${origin}/?session=${token}` }, 201);
+}
+
+function extractAmoDealId(url) {
+  const match = String(url || "").match(/\/leads\/detail\/(\d+)/);
+  return match ? match[1] : null;
 }
 
 function json(value, status = 200) {

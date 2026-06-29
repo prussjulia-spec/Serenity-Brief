@@ -42,6 +42,17 @@ export async function onRequestPost({ params, request, env }) {
     return json(result, 400);
   }
 
+  // Add amoCRM note if deal was linked at session creation
+  let amoNoteError = null;
+  if (session.amoDealId && result.documentUrl && env.AMO_ACCESS_TOKEN && env.AMO_DOMAIN) {
+    try {
+      await addAmoNote(env, session.amoDealId, result.documentUrl);
+    } catch (err) {
+      amoNoteError = err.message;
+      console.error("amoCRM note failed:", err.message);
+    }
+  }
+
   // Mark session as submitted so duplicate submits are blocked
   const now = new Date().toISOString();
   const submissionId = payload.submissionId || result.submissionId || null;
@@ -51,7 +62,26 @@ export async function onRequestPost({ params, request, env }) {
     expirationTtl: 31_536_000
   });
 
-  return json(result, 200);
+  return json(amoNoteError ? { ...result, amoNoteError } : result, 200);
+}
+
+async function addAmoNote(env, dealId, documentUrl) {
+  const text = `Бриф заполнен клиентом.\nGoogle Doc с ответами: ${documentUrl}`;
+  const res = await fetch(
+    `https://${env.AMO_DOMAIN}/api/v4/leads/${dealId}/notes`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.AMO_ACCESS_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify([{ note_type: "common", params: { text } }])
+    }
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`amoCRM ${res.status}: ${body.slice(0, 200)}`);
+  }
 }
 
 export function onRequestGet() {

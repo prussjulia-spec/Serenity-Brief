@@ -396,7 +396,8 @@ async function createPersonalLink(event) {
   const form = new FormData(event.target);
   const payload = {
     briefId: String(form.get("briefId") || ""),
-    clientName: String(form.get("clientName") || "").trim()
+    clientName: String(form.get("clientName") || "").trim(),
+    amoUrl: String(form.get("amoUrl") || "").trim() || undefined
   };
   if (!payload.briefId || !payload.clientName) return;
 
